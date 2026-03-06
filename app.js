@@ -120,7 +120,7 @@ function buildTradingViewWidget(containerId, symbol) {
     symbol,
     interval: '60',
     timezone: 'Etc/UTC',
-    theme: 'light',
+    theme: 'dark',
     style: '1',
     locale: 'en',
     enable_publishing: false,
