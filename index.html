@@ -9,7 +9,7 @@
   <body>
     <main class="container" aria-live="polite">
       <header class="header">
-        <div>
+        <div class="panel header-panel">
           <h1>Bitcoin Dashboard</h1>
           <p class="subtitle">Live BTC + ETH snapshot powered by CoinGecko.</p>
           <p class="last-updated">Last updated: <span id="last-updated">—</span></p>
@@ -18,17 +18,17 @@
       </header>
 
       <section class="stats-grid" aria-label="Bitcoin market statistics">
-        <article class="stat-card">
+        <article class="stat-card" tabindex="0">
           <h2>BTC Price (USD)</h2>
           <p id="btc-price-usd" class="value">—</p>
         </article>
 
-        <article class="stat-card">
+        <article class="stat-card" tabindex="0">
           <h2>BTC Price (GBP)</h2>
           <p id="btc-price-gbp" class="value">—</p>
         </article>
 
-        <article class="stat-card">
+        <article class="stat-card" tabindex="0">
           <h2>BTC 24h Change (%)</h2>
           <p id="btc-change-24h" class="value">—</p>
         </article>
@@ -45,7 +45,7 @@
         <h2>Alt Assets</h2>
 
         <div class="alt-assets-grid">
-          <article class="asset-card">
+          <article class="asset-card" tabindex="0">
             <h3>Ethereum (ETH)</h3>
             <p>ETH Price (USD): <span id="eth-price-usd" class="value-inline">—</span></p>
             <p>
@@ -58,7 +58,7 @@
             </div>
           </article>
 
-          <article class="asset-card">
+          <article class="asset-card" tabindex="0">
             <h3>Gold (XAUUSD)</h3>
             <p class="asset-label">Chart</p>
             <div class="tradingview-widget-container asset-chart">
@@ -66,7 +66,7 @@
             </div>
           </article>
 
-          <article class="asset-card">
+          <article class="asset-card" tabindex="0">
             <h3>Crude Oil (WTI)</h3>
             <p class="asset-label">Chart</p>
             <div class="tradingview-widget-container asset-chart">
