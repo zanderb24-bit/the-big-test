@@ -11,7 +11,7 @@
       <header class="header">
         <div>
           <h1>Bitcoin Dashboard</h1>
-          <p class="subtitle">Live BTC market snapshot powered by CoinGecko.</p>
+          <p class="subtitle">Live BTC + ETH snapshot powered by CoinGecko.</p>
         </div>
         <button id="refresh-btn" type="button">Refresh</button>
       </header>
@@ -24,35 +24,49 @@
 
       <section class="stats-grid" aria-label="Bitcoin market statistics">
         <article class="stat-card">
-          <h2>Price (USD)</h2>
-          <p id="price-usd" class="value">—</p>
+          <h2>BTC Price (USD)</h2>
+          <p id="btc-price-usd" class="value">—</p>
         </article>
 
         <article class="stat-card">
-          <h2>Price (GBP)</h2>
-          <p id="price-gbp" class="value">—</p>
+          <h2>BTC Price (GBP)</h2>
+          <p id="btc-price-gbp" class="value">—</p>
         </article>
 
         <article class="stat-card">
-          <h2>24h Change</h2>
-          <p id="change-24h" class="value">—</p>
+          <h2>BTC 24h Change (%)</h2>
+          <p id="btc-change-24h" class="value">—</p>
         </article>
+      </section>
 
-        <article class="stat-card">
-          <h2>24h High / Low</h2>
-          <p id="high-low" class="value">—</p>
-        </article>
+      <section class="asset-section" aria-label="Alternative assets">
+        <h2>Alt Assets</h2>
+        <div class="stats-grid alt-grid">
+          <article class="stat-card">
+            <h3>ETH Price (USD)</h3>
+            <p id="eth-price-usd" class="value">—</p>
+          </article>
+
+          <article class="stat-card">
+            <h3>ETH 24h Change (%)</h3>
+            <p id="eth-change-24h" class="value">—</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="chart-section" aria-label="Gold price chart">
+        <h2>Gold (XAUUSD) Chart</h2>
+        <p class="chart-note">Gold price shown via TradingView (XAUUSD).</p>
+        <div class="tradingview-widget-container">
+          <div id="tradingview_gold_chart"></div>
+        </div>
       </section>
 
       <section class="chart-section" aria-label="Bitcoin price chart">
         <h2>BTCUSD Chart</h2>
         <div class="tradingview-widget-container">
           <div id="tradingview_btc_chart"></div>
-          <script
-            type="text/javascript"
-            src="https://s3.tradingview.com/tv.js"
-            async
-          ></script>
+          <script type="text/javascript" src="https://s3.tradingview.com/tv.js" async></script>
         </div>
       </section>
     </main>
