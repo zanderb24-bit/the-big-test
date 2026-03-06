@@ -12,15 +12,10 @@
         <div>
           <h1>Bitcoin Dashboard</h1>
           <p class="subtitle">Live BTC + ETH snapshot powered by CoinGecko.</p>
+          <p class="last-updated">Last updated: <span id="last-updated">—</span></p>
         </div>
         <button id="refresh-btn" type="button">Refresh</button>
       </header>
-
-      <section class="status-row">
-        <p id="loading" class="loading" hidden>Loading latest market data…</p>
-        <p id="error" class="error" role="alert" hidden></p>
-        <p class="last-updated">Last updated: <span id="last-updated">—</span></p>
-      </section>
 
       <section class="stats-grid" aria-label="Bitcoin market statistics">
         <article class="stat-card">
@@ -39,38 +34,50 @@
         </article>
       </section>
 
-      <section class="asset-section" aria-label="Alternative assets">
-        <h2>Alt Assets</h2>
-        <div class="stats-grid alt-grid">
-          <article class="stat-card">
-            <h3>ETH Price (USD)</h3>
-            <p id="eth-price-usd" class="value">—</p>
-          </article>
-
-          <article class="stat-card">
-            <h3>ETH 24h Change (%)</h3>
-            <p id="eth-change-24h" class="value">—</p>
-          </article>
-        </div>
-      </section>
-
-      <section class="chart-section" aria-label="Gold price chart">
-        <h2>Gold (XAUUSD) Chart</h2>
-        <p class="chart-note">Gold price shown via TradingView (XAUUSD).</p>
-        <div class="tradingview-widget-container">
-          <div id="tradingview_gold_chart"></div>
-        </div>
-      </section>
-
       <section class="chart-section" aria-label="Bitcoin price chart">
         <h2>BTCUSD Chart</h2>
-        <div class="tradingview-widget-container">
+        <div class="tradingview-widget-container chart-surface">
           <div id="tradingview_btc_chart"></div>
-          <script type="text/javascript" src="https://s3.tradingview.com/tv.js" async></script>
+        </div>
+      </section>
+
+      <section class="asset-section" aria-label="Alternative assets">
+        <h2>Alt Assets</h2>
+
+        <div class="alt-assets-grid">
+          <article class="asset-card">
+            <h3>Ethereum (ETH)</h3>
+            <p>ETH Price (USD): <span id="eth-price-usd" class="value-inline">—</span></p>
+            <p>
+              ETH 24h Change (%):
+              <span id="eth-change-24h" class="value-inline">—</span>
+            </p>
+            <p class="asset-label">Chart</p>
+            <div class="tradingview-widget-container asset-chart">
+              <div id="tradingview_eth_chart"></div>
+            </div>
+          </article>
+
+          <article class="asset-card">
+            <h3>Gold (XAUUSD)</h3>
+            <p class="asset-label">Chart</p>
+            <div class="tradingview-widget-container asset-chart">
+              <div id="tradingview_gold_chart"></div>
+            </div>
+          </article>
+
+          <article class="asset-card">
+            <h3>Crude Oil (WTI)</h3>
+            <p class="asset-label">Chart</p>
+            <div class="tradingview-widget-container asset-chart">
+              <div id="tradingview_oil_chart"></div>
+            </div>
+          </article>
         </div>
       </section>
     </main>
 
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js" async></script>
     <script src="app.js" defer></script>
   </body>
 </html>
