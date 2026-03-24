@@ -293,6 +293,12 @@ button:disabled {
   font-size: 0.78rem;
 }
 
+.set-main-btn {
+  align-self: flex-start;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.72rem;
+}
+
 .asset-chart {
   flex: 1;
   min-height: 420px;
