@@ -5,12 +5,44 @@ const REFRESH_INTERVAL_MS = 30_000;
 const elements = {
   refreshButton: document.getElementById('refresh-btn'),
   lastUpdated: document.getElementById('last-updated'),
+  mainChartHeading: document.getElementById('main-chart-heading'),
+  mainStatLabel1: document.getElementById('main-stat-label-1'),
+  mainStatLabel2: document.getElementById('main-stat-label-2'),
+  mainStatLabel3: document.getElementById('main-stat-label-3'),
   btcPriceUsd: document.getElementById('btc-price-usd'),
   btcPriceGbp: document.getElementById('btc-price-gbp'),
   btcChange24h: document.getElementById('btc-change-24h'),
   ethPriceUsd: document.getElementById('eth-price-usd'),
-  ethChange24h: document.getElementById('eth-change-24h')
+  ethChange24h: document.getElementById('eth-change-24h'),
+  assetCards: document.querySelectorAll('.asset-card'),
+  mainAssetButtons: document.querySelectorAll('[data-main-asset]')
 };
+
+const MAIN_ASSETS = {
+  bitcoin: {
+    chartTitle: 'BTCUSD Chart',
+    chartSymbol: 'BITSTAMP:BTCUSD',
+    labels: ['BTC Price (USD)', 'BTC Price (GBP)', 'BTC 24h Change (%)']
+  },
+  ethereum: {
+    chartTitle: 'ETHUSD Chart',
+    chartSymbol: 'COINBASE:ETHUSD',
+    labels: ['ETH Price (USD)', 'ETH Price (GBP)', 'ETH 24h Change (%)']
+  },
+  gold: {
+    chartTitle: 'XAUUSD Chart',
+    chartSymbol: 'OANDA:XAUUSD',
+    labels: ['Gold Spot (USD)', 'Gold Spot (GBP)', '24h Change (%)']
+  },
+  oil: {
+    chartTitle: 'USOIL Chart',
+    chartSymbol: 'TVC:USOIL',
+    labels: ['WTI Price (USD)', 'WTI Price (GBP)', '24h Change (%)']
+  }
+};
+
+let activeMainAsset = 'bitcoin';
+let latestMarketData = null;
 
 function isValidNumber(value) {
   return typeof value === 'number' && Number.isFinite(value);
@@ -76,6 +108,47 @@ function updateView(data) {
   updateChangeClass(elements.ethChange24h, eth.usd_24h_change);
 
   elements.lastUpdated.textContent = formatDate(btc.last_updated_at ?? eth.last_updated_at);
+  latestMarketData = data;
+  renderMainAsset(activeMainAsset, data);
+}
+
+function getMainAssetValues(asset, data) {
+  const btc = data?.bitcoin || {};
+  const eth = data?.ethereum || {};
+
+  if (asset === 'bitcoin') {
+    return [btc.usd, btc.gbp, btc.usd_24h_change];
+  }
+
+  if (asset === 'ethereum') {
+    return [eth.usd, eth.gbp, eth.usd_24h_change];
+  }
+
+  return [null, null, null];
+}
+
+function renderMainAsset(asset, data) {
+  const config = MAIN_ASSETS[asset] || MAIN_ASSETS.bitcoin;
+  const [value1, value2, change] = getMainAssetValues(asset, data);
+
+  elements.mainChartHeading.textContent = config.chartTitle;
+  elements.mainStatLabel1.textContent = config.labels[0];
+  elements.mainStatLabel2.textContent = config.labels[1];
+  elements.mainStatLabel3.textContent = config.labels[2];
+
+  elements.btcPriceUsd.textContent = formatCurrency(value1, 'USD');
+  elements.btcPriceGbp.textContent = formatCurrency(value2, 'GBP');
+  elements.btcChange24h.textContent = formatPercent(change);
+  updateChangeClass(elements.btcChange24h, change);
+
+  buildTradingViewWidget('tradingview_btc_chart', config.chartSymbol, true);
+  highlightMainAssetCard(asset);
+}
+
+function highlightMainAssetCard(asset) {
+  elements.assetCards.forEach((card) => {
+    card.classList.toggle('selected', card.dataset.mainAsset === asset);
+  });
 }
 
 async function fetchMarketData() {
@@ -107,10 +180,21 @@ async function fetchMarketData() {
   }
 }
 
-function buildTradingViewWidget(containerId, symbol) {
+function buildTradingViewWidget(containerId, symbol, forceRebuild = false) {
   const container = document.getElementById(containerId);
 
-  if (!window.TradingView || !container || container.dataset.widgetLoaded === 'true') {
+  if (!window.TradingView || !container) {
+    return;
+  }
+
+  if (forceRebuild) {
+    if (container.dataset.symbol === symbol && container.dataset.widgetLoaded === 'true') {
+      return;
+    }
+
+    container.innerHTML = '';
+    container.dataset.widgetLoaded = 'false';
+  } else if (container.dataset.widgetLoaded === 'true') {
     return;
   }
 
@@ -130,6 +214,7 @@ function buildTradingViewWidget(containerId, symbol) {
   });
 
   container.dataset.widgetLoaded = 'true';
+  container.dataset.symbol = symbol;
 }
 
 function initTradingViewWidgets() {
@@ -148,6 +233,21 @@ function initTradingViewWidgets() {
 
   createWidgets();
 }
+
+function setMainAsset(asset) {
+  if (!MAIN_ASSETS[asset]) {
+    return;
+  }
+
+  activeMainAsset = asset;
+  renderMainAsset(asset, latestMarketData);
+}
+
+elements.mainAssetButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    setMainAsset(button.dataset.mainAsset);
+  });
+});
 
 elements.refreshButton.addEventListener('click', fetchMarketData);
 
