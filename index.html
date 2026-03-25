@@ -25,28 +25,6 @@
         <button id="refresh-btn" type="button">Refresh</button>
       </header>
 
-      <section class="asset-section" aria-label="Alternative assets">
-        <h2>Tracked Assets</h2>
-
-        <div class="alt-assets-grid">
-          <article class="asset-card" tabindex="0" data-main-asset="bitcoin">
-            <button class="set-main-btn" type="button" data-main-asset="bitcoin">BTC</button>
-          </article>
-
-          <article class="asset-card" tabindex="0" data-main-asset="ethereum">
-            <button class="set-main-btn" type="button" data-main-asset="ethereum">ETH</button>
-          </article>
-
-          <article class="asset-card" tabindex="0" data-main-asset="gold">
-            <button class="set-main-btn" type="button" data-main-asset="gold">XAU</button>
-          </article>
-
-          <article class="asset-card" tabindex="0" data-main-asset="oil">
-            <button class="set-main-btn" type="button" data-main-asset="oil">WTI</button>
-          </article>
-        </div>
-      </section>
-
       <section class="stats-grid" aria-label="Primary asset market statistics">
         <article class="stat-card" tabindex="0">
           <h2 id="main-stat-label-1">BTC Price (USD)</h2>
@@ -64,10 +42,48 @@
         </article>
       </section>
 
-      <section class="chart-section" aria-label="Primary asset price chart">
+      <section class="chart-section" aria-label="Bitcoin price chart">
         <h2 id="main-chart-heading">BTCUSD Chart</h2>
         <div class="tradingview-widget-container chart-surface">
           <div id="tradingview_btc_chart"></div>
+        </div>
+      </section>
+
+      <section class="asset-section" aria-label="Alternative assets">
+        <h2>Alt Assets</h2>
+
+        <div class="alt-assets-grid">
+          <article class="asset-card" tabindex="0" data-main-asset="ethereum">
+            <h3>Ethereum (ETH)</h3>
+            <p>ETH Price (USD): <span id="eth-price-usd" class="value-inline">—</span></p>
+            <p>
+              ETH 24h Change (%):
+              <span id="eth-change-24h" class="value-inline">—</span>
+            </p>
+            <button class="set-main-btn" type="button" data-main-asset="ethereum">Set as main card</button>
+            <p class="asset-label">Chart</p>
+            <div class="tradingview-widget-container asset-chart">
+              <div id="tradingview_eth_chart"></div>
+            </div>
+          </article>
+
+          <article class="asset-card" tabindex="0" data-main-asset="gold">
+            <h3>Gold (XAUUSD)</h3>
+            <button class="set-main-btn" type="button" data-main-asset="gold">Set as main card</button>
+            <p class="asset-label">Chart</p>
+            <div class="tradingview-widget-container asset-chart">
+              <div id="tradingview_gold_chart"></div>
+            </div>
+          </article>
+
+          <article class="asset-card" tabindex="0" data-main-asset="oil">
+            <h3>Crude Oil (WTI)</h3>
+            <button class="set-main-btn" type="button" data-main-asset="oil">Set as main card</button>
+            <p class="asset-label">Chart</p>
+            <div class="tradingview-widget-container asset-chart">
+              <div id="tradingview_oil_chart"></div>
+            </div>
+          </article>
         </div>
       </section>
     </main>

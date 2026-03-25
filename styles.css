@@ -367,6 +367,12 @@ button:disabled {
 }
 
 .set-main-btn {
+  align-self: flex-start;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.72rem;
+}
+
+.set-main-btn {
   padding: 0.65rem 1.1rem;
   min-width: 100%;
   font-size: 1.1rem;

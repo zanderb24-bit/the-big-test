@@ -5,11 +5,6 @@ const REFRESH_INTERVAL_MS = 30_000;
 const elements = {
   refreshButton: document.getElementById('refresh-btn'),
   lastUpdated: document.getElementById('last-updated'),
-  dashboardRoot: document.getElementById('dashboard-root'),
-  loaderOverlay: document.getElementById('loader-overlay'),
-  loaderRing: document.getElementById('loader-ring'),
-  loaderDot: document.getElementById('loader-dot'),
-  loaderText: document.getElementById('loader-text'),
   mainChartHeading: document.getElementById('main-chart-heading'),
   mainStatLabel1: document.getElementById('main-stat-label-1'),
   mainStatLabel2: document.getElementById('main-stat-label-2'),
@@ -17,6 +12,8 @@ const elements = {
   btcPriceUsd: document.getElementById('btc-price-usd'),
   btcPriceGbp: document.getElementById('btc-price-gbp'),
   btcChange24h: document.getElementById('btc-change-24h'),
+  ethPriceUsd: document.getElementById('eth-price-usd'),
+  ethChange24h: document.getElementById('eth-change-24h'),
   assetCards: document.querySelectorAll('.asset-card'),
   mainAssetButtons: document.querySelectorAll('[data-main-asset]')
 };
@@ -100,6 +97,15 @@ function setRefreshing(isRefreshing) {
 function updateView(data) {
   const btc = data.bitcoin || {};
   const eth = data.ethereum || {};
+
+  elements.lastUpdated.textContent = formatDate(btc.last_updated_at ?? eth.last_updated_at);
+  latestMarketData = data;
+  renderMainAsset(activeMainAsset, data);
+}
+
+function getMainAssetValues(asset, data) {
+  const btc = data?.bitcoin || {};
+  const eth = data?.ethereum || {};
 
   elements.lastUpdated.textContent = formatDate(btc.last_updated_at ?? eth.last_updated_at);
   latestMarketData = data;
@@ -232,50 +238,6 @@ function setMainAsset(asset) {
 
   activeMainAsset = asset;
   renderMainAsset(asset, latestMarketData);
-}
-
-function runLoadingCinematic() {
-  if (!elements.loaderRing || !elements.loaderDot || !elements.loaderText) {
-    return Promise.resolve();
-  }
-
-  const durationMs = 1900;
-  const start = performance.now();
-
-  return new Promise((resolve) => {
-    const step = (timestamp) => {
-      const elapsed = timestamp - start;
-      const progress = Math.min(elapsed / durationMs, 1);
-      const angle = Math.round(progress * 360);
-
-      elements.loaderRing.style.setProperty('--progress-angle', `${angle}deg`);
-      elements.loaderText.textContent = progress < 1 ? 'Booting dashboard…' : 'Dashboard online';
-
-      if (progress >= 1) {
-        elements.loaderDot.classList.add('is-complete');
-        setTimeout(resolve, 220);
-        return;
-      }
-
-      requestAnimationFrame(step);
-    };
-
-    requestAnimationFrame(step);
-  });
-}
-
-function revealDashboard() {
-  elements.dashboardRoot?.classList.remove('dashboard-hidden');
-  elements.dashboardRoot?.classList.add('dashboard-visible');
-  elements.loaderOverlay?.classList.add('is-hidden');
-}
-
-async function initDashboard() {
-  await runLoadingCinematic();
-  revealDashboard();
-  fetchMarketData();
-  setInterval(fetchMarketData, REFRESH_INTERVAL_MS);
-  initTradingViewWidgets();
 }
 
 elements.mainAssetButtons.forEach((button) => {
