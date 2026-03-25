@@ -1,6 +1,7 @@
 const API_URL =
   'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd,gbp&include_24hr_change=true&include_last_updated_at=true';
 const REFRESH_INTERVAL_MS = 30_000;
+const LOADER_DURATION_MS = 3_500;
 
 const elements = {
   refreshButton: document.getElementById('refresh-btn'),
