@@ -286,10 +286,14 @@ button:disabled {
 }
 
 .set-main-btn {
-  padding: 0.65rem 1.1rem;
-  min-width: 100%;
-  font-size: 1.1rem;
-  letter-spacing: 0.16em;
+  align-self: flex-start;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.72rem;
+}
+
+.asset-chart {
+  flex: 1;
+  min-height: 420px;
 }
 
 .tradingview-widget-container {

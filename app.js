@@ -12,6 +12,8 @@ const elements = {
   btcPriceUsd: document.getElementById('btc-price-usd'),
   btcPriceGbp: document.getElementById('btc-price-gbp'),
   btcChange24h: document.getElementById('btc-change-24h'),
+  ethPriceUsd: document.getElementById('eth-price-usd'),
+  ethChange24h: document.getElementById('eth-change-24h'),
   assetCards: document.querySelectorAll('.asset-card'),
   mainAssetButtons: document.querySelectorAll('[data-main-asset]')
 };
@@ -95,6 +97,15 @@ function setRefreshing(isRefreshing) {
 function updateView(data) {
   const btc = data.bitcoin || {};
   const eth = data.ethereum || {};
+
+  elements.lastUpdated.textContent = formatDate(btc.last_updated_at ?? eth.last_updated_at);
+  latestMarketData = data;
+  renderMainAsset(activeMainAsset, data);
+}
+
+function getMainAssetValues(asset, data) {
+  const btc = data?.bitcoin || {};
+  const eth = data?.ethereum || {};
 
   elements.lastUpdated.textContent = formatDate(btc.last_updated_at ?? eth.last_updated_at);
   latestMarketData = data;
