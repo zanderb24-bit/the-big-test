@@ -64,6 +64,120 @@ body::after {
   z-index: 0;
 }
 
+.loader-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 40%, rgba(86, 255, 150, 0.14), rgba(2, 7, 5, 0.96) 55%),
+    linear-gradient(180deg, #020503 0%, #010402 100%);
+  transition: opacity 350ms ease, visibility 350ms ease;
+}
+
+.loader-overlay.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.loader-core {
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+}
+
+.loader-ring {
+  --progress-angle: 0deg;
+  width: 124px;
+  aspect-ratio: 1;
+  position: relative;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent) var(--progress-angle), rgba(86, 255, 150, 0.16) 0deg 360deg);
+  padding: 10px;
+  box-shadow:
+    0 0 24px rgba(86, 255, 150, 0.2),
+    inset 0 0 14px rgba(86, 255, 150, 0.25);
+}
+
+.loader-ring::before {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, rgba(7, 20, 14, 0.85), rgba(2, 6, 4, 1) 70%);
+  border: 1px solid rgba(86, 255, 150, 0.25);
+}
+
+.loader-ring::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  transform: translateX(-50%);
+  background: #9bffbe;
+  box-shadow:
+    0 0 10px rgba(86, 255, 150, 0.95),
+    0 0 22px rgba(86, 255, 150, 0.6);
+  transform-origin: 50% 65px;
+  animation: loaderOrbit 1.1s linear infinite;
+}
+
+.loader-ring.is-complete::after {
+  animation: none;
+  opacity: 0.4;
+}
+
+@keyframes loaderOrbit {
+  from {
+    transform: translateX(-50%) rotate(0deg);
+  }
+
+  to {
+    transform: translateX(-50%) rotate(360deg);
+  }
+}
+
+.loader-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(86, 255, 150, 0.22);
+  box-shadow: 0 0 0 rgba(86, 255, 150, 0.25);
+  transition: background-color 220ms ease, box-shadow 220ms ease, transform 220ms ease;
+}
+
+.loader-dot.is-complete {
+  background: var(--accent);
+  transform: scale(1.08);
+  box-shadow:
+    0 0 12px rgba(86, 255, 150, 0.78),
+    0 0 24px rgba(86, 255, 150, 0.5);
+}
+
+.loader-text {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.82rem;
+}
+
+.dashboard-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dashboard-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 320ms ease;
+}
+
 .container {
   width: min(1120px, 94vw);
   margin: 1.8rem auto 2.4rem;
@@ -274,28 +388,48 @@ button:disabled {
 
 .alt-assets-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1rem;
 }
 
 .asset-card {
-  min-height: 550px;
+  min-height: 116px;
   display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
-.asset-label {
-  color: var(--muted);
-  font-weight: 700;
+.set-main-btn {
+  display: grid;
+  justify-items: center;
+  gap: 0.3rem;
+  padding: 0.7rem 0.55rem;
+  min-width: 100%;
+  width: 100%;
+  max-width: 100%;
+  font-size: 0.88rem;
+  line-height: 1.05;
+  text-align: center;
   letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-size: 0.78rem;
+  white-space: normal;
+  word-break: break-word;
 }
 
-.asset-chart {
-  flex: 1;
-  min-height: 420px;
+.asset-name {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.asset-ticker {
+  color: #edfff2;
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-shadow: 0 0 8px rgba(86, 255, 150, 0.26);
 }
 
 .tradingview-widget-container {
@@ -347,23 +481,11 @@ button:disabled {
   filter: saturate(1.08) contrast(1.05) brightness(0.95) hue-rotate(6deg);
 }
 
-#tradingview_eth_chart,
-#tradingview_gold_chart,
-#tradingview_oil_chart {
-  height: 100%;
-  min-height: 420px;
-}
-
 .value {
   font-size: 1.5rem;
   font-weight: 800;
   color: #edfff2;
   text-shadow: 0 0 10px rgba(86, 255, 150, 0.18);
-}
-
-.value-inline {
-  font-weight: 800;
-  color: #ecfff2;
 }
 
 .positive {
@@ -378,11 +500,19 @@ button:disabled {
 
 @media (max-width: 980px) {
   .alt-assets-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 860px) {
+  .alt-assets-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .asset-card {
+    min-height: 100px;
+  }
+
   .stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
