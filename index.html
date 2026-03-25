@@ -7,7 +7,15 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <main class="container" aria-live="polite">
+    <div id="loader-overlay" class="loader-overlay" role="status" aria-live="polite">
+      <div class="loader-core">
+        <div id="loader-ring" class="loader-ring" aria-hidden="true"></div>
+        <div id="loader-dot" class="loader-dot" aria-hidden="true"></div>
+        <p id="loader-text" class="loader-text">Booting dashboard…</p>
+      </div>
+    </div>
+
+    <main id="dashboard-root" class="container dashboard-hidden" aria-live="polite">
       <header class="header">
         <div class="panel header-panel">
           <h1>Bitcoin Dashboard</h1>

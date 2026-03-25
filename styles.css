@@ -64,6 +64,87 @@ body::after {
   z-index: 0;
 }
 
+.loader-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 40%, rgba(86, 255, 150, 0.14), rgba(2, 7, 5, 0.96) 55%),
+    linear-gradient(180deg, #020503 0%, #010402 100%);
+  transition: opacity 350ms ease, visibility 350ms ease;
+}
+
+.loader-overlay.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.loader-core {
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+}
+
+.loader-ring {
+  --progress-angle: 0deg;
+  width: 124px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent) var(--progress-angle), rgba(86, 255, 150, 0.16) 0deg 360deg);
+  padding: 10px;
+  box-shadow:
+    0 0 24px rgba(86, 255, 150, 0.2),
+    inset 0 0 14px rgba(86, 255, 150, 0.25);
+}
+
+.loader-ring::before {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, rgba(7, 20, 14, 0.85), rgba(2, 6, 4, 1) 70%);
+  border: 1px solid rgba(86, 255, 150, 0.25);
+}
+
+.loader-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(86, 255, 150, 0.22);
+  box-shadow: 0 0 0 rgba(86, 255, 150, 0.25);
+  transition: background-color 220ms ease, box-shadow 220ms ease, transform 220ms ease;
+}
+
+.loader-dot.is-complete {
+  background: var(--accent);
+  transform: scale(1.08);
+  box-shadow:
+    0 0 12px rgba(86, 255, 150, 0.78),
+    0 0 24px rgba(86, 255, 150, 0.5);
+}
+
+.loader-text {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.82rem;
+}
+
+.dashboard-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dashboard-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 320ms ease;
+}
+
 .container {
   width: min(1120px, 94vw);
   margin: 1.8rem auto 2.4rem;
@@ -291,9 +372,11 @@ button:disabled {
   font-size: 0.72rem;
 }
 
-.asset-chart {
-  flex: 1;
-  min-height: 420px;
+.set-main-btn {
+  padding: 0.65rem 1.1rem;
+  min-width: 100%;
+  font-size: 1.1rem;
+  letter-spacing: 0.16em;
 }
 
 .tradingview-widget-container {

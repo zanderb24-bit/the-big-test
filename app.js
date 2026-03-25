@@ -248,6 +248,4 @@ elements.mainAssetButtons.forEach((button) => {
 
 elements.refreshButton.addEventListener('click', fetchMarketData);
 
-fetchMarketData();
-setInterval(fetchMarketData, REFRESH_INTERVAL_MS);
-initTradingViewWidgets();
+initDashboard();
