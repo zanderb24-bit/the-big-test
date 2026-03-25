@@ -360,43 +360,23 @@ button:disabled {
 }
 
 .asset-card {
-  min-height: 116px;
+  min-height: 110px;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
 }
 
 .set-main-btn {
-  display: grid;
-  justify-items: center;
-  gap: 0.3rem;
-  padding: 0.7rem 0.55rem;
+  align-self: flex-start;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.72rem;
+}
+
+.set-main-btn {
+  padding: 0.65rem 1.1rem;
   min-width: 100%;
-  width: 100%;
-  max-width: 100%;
-  font-size: 0.88rem;
-  line-height: 1.05;
-  text-align: center;
-  letter-spacing: 0.08em;
-  white-space: normal;
-  word-break: break-word;
-}
-
-.asset-name {
-  color: var(--muted);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.asset-ticker {
-  color: #edfff2;
-  font-size: 1.05rem;
-  font-weight: 900;
-  letter-spacing: 0.14em;
-  text-shadow: 0 0 8px rgba(86, 255, 150, 0.26);
+  font-size: 1.1rem;
+  letter-spacing: 0.16em;
 }
 
 .tradingview-widget-container {
@@ -474,10 +454,6 @@ button:disabled {
 @media (max-width: 860px) {
   .alt-assets-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .asset-card {
-    min-height: 100px;
   }
 
   .stats-grid {
