@@ -6,11 +6,6 @@ const LOADER_DURATION_MS = 3_500;
 const elements = {
   refreshButton: document.getElementById('refresh-btn'),
   lastUpdated: document.getElementById('last-updated'),
-  dashboardRoot: document.getElementById('dashboard-root'),
-  loaderOverlay: document.getElementById('loader-overlay'),
-  loaderRing: document.getElementById('loader-ring'),
-  loaderDot: document.getElementById('loader-dot'),
-  loaderText: document.getElementById('loader-text'),
   mainChartHeading: document.getElementById('main-chart-heading'),
   mainStatLabel1: document.getElementById('main-stat-label-1'),
   mainStatLabel2: document.getElementById('main-stat-label-2'),
@@ -18,6 +13,8 @@ const elements = {
   btcPriceUsd: document.getElementById('btc-price-usd'),
   btcPriceGbp: document.getElementById('btc-price-gbp'),
   btcChange24h: document.getElementById('btc-change-24h'),
+  ethPriceUsd: document.getElementById('eth-price-usd'),
+  ethChange24h: document.getElementById('eth-change-24h'),
   assetCards: document.querySelectorAll('.asset-card'),
   mainAssetButtons: document.querySelectorAll('[data-main-asset]')
 };
@@ -101,6 +98,15 @@ function setRefreshing(isRefreshing) {
 function updateView(data) {
   const btc = data.bitcoin || {};
   const eth = data.ethereum || {};
+
+  elements.lastUpdated.textContent = formatDate(btc.last_updated_at ?? eth.last_updated_at);
+  latestMarketData = data;
+  renderMainAsset(activeMainAsset, data);
+}
+
+function getMainAssetValues(asset, data) {
+  const btc = data?.bitcoin || {};
+  const eth = data?.ethereum || {};
 
   elements.lastUpdated.textContent = formatDate(btc.last_updated_at ?? eth.last_updated_at);
   latestMarketData = data;
@@ -233,60 +239,6 @@ function setMainAsset(asset) {
 
   activeMainAsset = asset;
   renderMainAsset(asset, latestMarketData);
-}
-
-function runLoadingCinematic() {
-  if (!elements.loaderRing || !elements.loaderDot || !elements.loaderText) {
-    return Promise.resolve();
-  }
-
-  return new Promise((resolve) => {
-    const start = Date.now();
-    let finished = false;
-
-    const finish = () => {
-      if (finished) {
-        return;
-      }
-
-      finished = true;
-      clearInterval(intervalId);
-      clearTimeout(failsafeTimeoutId);
-      elements.loaderRing.style.setProperty('--progress-angle', '360deg');
-      elements.loaderText.textContent = 'Dashboard online';
-      elements.loaderDot.classList.add('is-complete');
-      setTimeout(resolve, 120);
-    };
-
-    const tick = () => {
-      const elapsed = Date.now() - start;
-      const progress = Math.min(elapsed / LOADER_DURATION_MS, 1);
-      const angle = Math.round(progress * 360);
-      elements.loaderRing.style.setProperty('--progress-angle', `${angle}deg`);
-
-      if (progress >= 1) {
-        finish();
-      }
-    };
-
-    const intervalId = setInterval(tick, 50);
-    const failsafeTimeoutId = setTimeout(finish, LOADER_DURATION_MS + 300);
-    tick();
-  });
-}
-
-function revealDashboard() {
-  elements.dashboardRoot?.classList.remove('dashboard-hidden');
-  elements.dashboardRoot?.classList.add('dashboard-visible');
-  elements.loaderOverlay?.classList.add('is-hidden');
-}
-
-async function initDashboard() {
-  await runLoadingCinematic();
-  revealDashboard();
-  fetchMarketData();
-  setInterval(fetchMarketData, REFRESH_INTERVAL_MS);
-  initTradingViewWidgets();
 }
 
 elements.mainAssetButtons.forEach((button) => {
