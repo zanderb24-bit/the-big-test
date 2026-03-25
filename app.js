@@ -98,14 +98,14 @@ function updateView(data) {
   const btc = data.bitcoin || {};
   const eth = data.ethereum || {};
 
-  elements.btcPriceUsd.textContent = formatCurrency(btc.usd, 'USD');
-  elements.btcPriceGbp.textContent = formatCurrency(btc.gbp, 'GBP');
-  elements.btcChange24h.textContent = formatPercent(btc.usd_24h_change);
-  updateChangeClass(elements.btcChange24h, btc.usd_24h_change);
+  elements.lastUpdated.textContent = formatDate(btc.last_updated_at ?? eth.last_updated_at);
+  latestMarketData = data;
+  renderMainAsset(activeMainAsset, data);
+}
 
-  elements.ethPriceUsd.textContent = formatCurrency(eth.usd, 'USD');
-  elements.ethChange24h.textContent = formatPercent(eth.usd_24h_change);
-  updateChangeClass(elements.ethChange24h, eth.usd_24h_change);
+function getMainAssetValues(asset, data) {
+  const btc = data?.bitcoin || {};
+  const eth = data?.ethereum || {};
 
   elements.lastUpdated.textContent = formatDate(btc.last_updated_at ?? eth.last_updated_at);
   latestMarketData = data;
@@ -220,9 +220,6 @@ function buildTradingViewWidget(containerId, symbol, forceRebuild = false) {
 function initTradingViewWidgets() {
   const createWidgets = () => {
     buildTradingViewWidget('tradingview_btc_chart', 'BITSTAMP:BTCUSD');
-    buildTradingViewWidget('tradingview_eth_chart', 'COINBASE:ETHUSD');
-    buildTradingViewWidget('tradingview_gold_chart', 'OANDA:XAUUSD');
-    buildTradingViewWidget('tradingview_oil_chart', 'TVC:USOIL');
   };
 
   const script = document.querySelector('script[src="https://s3.tradingview.com/tv.js"]');
