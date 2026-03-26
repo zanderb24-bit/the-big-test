@@ -365,6 +365,125 @@ h1 {
   color: #def8e8;
 }
 
+
+.engineering-topics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.engineering-topic-card {
+  padding: 0.85rem;
+  border-radius: 0.8rem;
+  border: 1px solid rgba(86, 255, 150, 0.32);
+  background: linear-gradient(180deg, rgba(20, 44, 30, 0.52), rgba(6, 16, 11, 0.82));
+  display: grid;
+  gap: 0.55rem;
+}
+
+.engineering-topic-card h4 {
+  margin: 0;
+  color: #e5ffee;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.9rem;
+}
+
+.engineering-label {
+  color: #b9f7cf;
+  font-size: 0.76rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.engineering-notes,
+.engineering-link-inputs input {
+  width: 100%;
+  border-radius: 0.55rem;
+  border: 1px solid rgba(86, 255, 150, 0.34);
+  background: rgba(1, 10, 6, 0.78);
+  color: #e8ffee;
+  padding: 0.58rem 0.65rem;
+  font: inherit;
+}
+
+.engineering-notes {
+  min-height: 108px;
+  resize: vertical;
+}
+
+.engineering-notes:focus-visible,
+.engineering-link-inputs input:focus-visible {
+  outline: 2px solid rgba(86, 255, 150, 0.78);
+  outline-offset: 1px;
+}
+
+.engineering-links-block {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.engineering-link-inputs {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.45rem;
+}
+
+.engineering-link-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.engineering-link-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  border: 1px solid rgba(86, 255, 150, 0.22);
+  border-radius: 0.55rem;
+  padding: 0.45rem 0.55rem;
+  background: rgba(3, 14, 9, 0.74);
+}
+
+.engineering-link-item a {
+  color: #d9ffe8;
+  text-decoration: none;
+  word-break: break-word;
+}
+
+.engineering-link-item a:hover,
+.engineering-link-item a:focus-visible {
+  text-decoration: underline;
+}
+
+.link-remove-btn {
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.5rem;
+  font-size: 0.73rem;
+  letter-spacing: 0.1em;
+  flex-shrink: 0;
+}
+
+.engineering-helper {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.engineering-error {
+  color: #ffc5cf;
+  min-height: 1.1em;
+}
+
+.engineering-empty-state {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
 button {
   border: 1px solid var(--panel-stroke-strong);
   background: linear-gradient(180deg, rgba(23, 45, 33, 0.82), rgba(8, 20, 14, 0.92));
@@ -640,6 +759,10 @@ button:disabled {
 }
 
 @media (max-width: 860px) {
+  .engineering-topics-grid {
+    grid-template-columns: 1fr;
+  }
+
   .alt-assets-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
