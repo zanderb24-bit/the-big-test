@@ -57,9 +57,11 @@ const RUGBY_POSITIONS = [
 ];
 
 const RUGBY_BALL = { id: 'ball', label: 'Ball', name: 'Ball', startX: 50, startY: 48 };
-const RUGBY_STORAGE_KEY = 'rugby-preset-moves-v1';
+const RUGBY_PRESET_STORAGE_KEY = 'rugby-preset-moves';
+const RUGBY_PRESET_STORAGE_LEGACY_KEY = 'rugby-preset-moves-v1';
+const RUGBY_SIMULATOR_RECORDINGS_KEY = 'rugby-simulator-recordings';
 
-const rugbyPanelState = { activeView: 'moves' };
+const rugbyPanelState = { activeView: 'moves', pendingRecordingId: null };
 let rugbyWorkspace = null;
 
 function getEngineeringStorageKey(topicKey, field) {
@@ -135,18 +137,20 @@ function extractYouTubeVideoId(urlInput) {
 }
 
 function loadRugbyMoves() {
-  const rawMoves = localStorage.getItem(RUGBY_STORAGE_KEY);
-  if (!rawMoves) {
-    return [];
-  }
+  const rawMoves = localStorage.getItem(RUGBY_PRESET_STORAGE_KEY) || localStorage.getItem(RUGBY_PRESET_STORAGE_LEGACY_KEY);
+  if (!rawMoves) return [];
 
   try {
     const parsed = JSON.parse(rawMoves);
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
+    if (!Array.isArray(parsed)) return [];
 
-    return parsed.filter((move) => move && typeof move === 'object' && String(move.id ?? '').trim() && String(move.title ?? '').trim());
+    return parsed
+      .filter((move) => move && typeof move === 'object' && String(move.id ?? '').trim() && String(move.title ?? '').trim())
+      .map((move) => ({
+        ...move,
+        type: move.type === 'simulator-move' ? 'simulator-move' : 'external-link',
+        sourceLabel: String(move.sourceLabel ?? '').trim() || (move.type === 'simulator-move' ? 'Simulator' : '')
+      }));
   } catch {
     return [];
   }
@@ -154,7 +158,40 @@ function loadRugbyMoves() {
 
 function saveRugbyMoves(moves) {
   const safeMoves = Array.isArray(moves) ? moves : [];
-  localStorage.setItem(RUGBY_STORAGE_KEY, JSON.stringify(safeMoves));
+  localStorage.setItem(RUGBY_PRESET_STORAGE_KEY, JSON.stringify(safeMoves));
+}
+
+function loadRugbySimulatorRecordings() {
+  const rawRecordings = localStorage.getItem(RUGBY_SIMULATOR_RECORDINGS_KEY);
+  if (!rawRecordings) return [];
+
+  try {
+    const parsed = JSON.parse(rawRecordings);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.filter((recording) => recording && typeof recording === 'object' && String(recording.id ?? '').trim() && String(recording.title ?? '').trim());
+  } catch {
+    return [];
+  }
+}
+
+function saveRugbySimulatorRecordings(recordings) {
+  const safeRecordings = Array.isArray(recordings) ? recordings : [];
+  localStorage.setItem(RUGBY_SIMULATOR_RECORDINGS_KEY, JSON.stringify(safeRecordings));
+}
+
+function getRugbyRecordingOptionsMarkup(selectedId = '') {
+  const recordings = loadRugbySimulatorRecordings();
+  if (!recordings.length) {
+    return '<option value="">No recordings saved yet</option>';
+  }
+
+  return recordings
+    .map((recording) => {
+      const isSelected = recording.id === selectedId ? ' selected' : '';
+      return `<option value="${sanitizeText(recording.id)}"${isSelected}>${sanitizeText(recording.title)}</option>`;
+    })
+    .join('');
 }
 
 function getRugbyMovesMarkup() {
@@ -165,8 +202,9 @@ function getRugbyMovesMarkup() {
 
   return moves
     .map((move) => {
+      const isSimulatorMove = move.type === 'simulator-move';
       const safeUrl = normalizeUrl(move.videoUrl);
-      const sourceLabel = safeUrl ? getSourceLabel(safeUrl) : 'Manual';
+      const sourceLabel = isSimulatorMove ? (move.sourceLabel || 'Simulator') : safeUrl ? getSourceLabel(safeUrl) : 'Manual';
       const thumbnailUrl = move.thumbnailUrl || '';
       const safeTitle = sanitizeText(move.title);
       const safeDescription = sanitizeText(move.description || 'No notes added.');
@@ -179,11 +217,17 @@ function getRugbyMovesMarkup() {
               : '<div class="rugby-move-thumb rugby-move-thumb-fallback" aria-hidden="true">No Preview</div>'}
           </div>
           <div class="rugby-move-meta">
-            <h5>${safeTitle}</h5>
+            <h5>${safeTitle} ${isSimulatorMove ? '<span class="rugby-move-badge">Simulator</span>' : ''}</h5>
             <p>${safeDescription}</p>
             <div class="rugby-move-meta-footer">
               <span>${sanitizeText(sourceLabel)}</span>
-              ${safeUrl ? `<a href="${sanitizeText(safeUrl)}" target="_blank" rel="noopener noreferrer">Open Video</a>` : '<span>No URL</span>'}
+              ${
+                isSimulatorMove
+                  ? `<button type="button" data-action="rugby-open-simulator-move" data-recording-id="${sanitizeText(move.recordingId || '')}">Open in Simulator</button>`
+                  : safeUrl
+                    ? `<a href="${sanitizeText(safeUrl)}" target="_blank" rel="noopener noreferrer">Open Video</a>`
+                    : '<span>No URL</span>'
+              }
             </div>
           </div>
           <button type="button" class="link-remove-btn" data-action="rugby-delete-move" data-rugby-move-id="${sanitizeText(move.id)}">Remove</button>
@@ -222,6 +266,7 @@ function getRugbyMovesPanelMarkup() {
 }
 
 function getRugbySimulatorPanelMarkup() {
+  const workspace = ensureRugbyWorkspaceModel();
   const selectOptions = [...RUGBY_POSITIONS, RUGBY_BALL]
     .map((item) => `<option value="${item.id}">${item.id === 'ball' ? 'Ball' : `${item.id} • ${item.name}`}</option>`)
     .join('');
@@ -230,9 +275,26 @@ function getRugbySimulatorPanelMarkup() {
     <section class="rugby-workspace">
       <aside class="rugby-controls">
         <div class="rugby-control-block">
+          <label class="engineering-label" for="rugby-recording-title">Move title</label>
+          <input id="rugby-recording-title" type="text" class="engineering-link-label" data-rugby-recording-title placeholder="e.g. Strike Left - Wrap Around" value="${sanitizeText(workspace.recordingMeta.title)}" />
+        </div>
+
+        <div class="rugby-control-block">
+          <label class="engineering-label" for="rugby-recording-subtitle">Description / tag (optional)</label>
+          <input id="rugby-recording-subtitle" type="text" class="engineering-link-label" data-rugby-recording-subtitle placeholder="e.g. Lineout launch • Attack" value="${sanitizeText(workspace.recordingMeta.subtitle)}" />
+        </div>
+
+        <div class="rugby-control-block">
           <label class="engineering-label" for="rugby-item-select">Selected marker</label>
           <select id="rugby-item-select" data-rugby-selector>
             ${selectOptions}
+          </select>
+        </div>
+
+        <div class="rugby-control-block">
+          <label class="engineering-label" for="rugby-saved-recordings">Saved recordings</label>
+          <select id="rugby-saved-recordings" data-rugby-recording-select>
+            ${getRugbyRecordingOptionsMarkup(workspace.loadedRecordingId)}
           </select>
         </div>
 
@@ -242,13 +304,21 @@ function getRugbySimulatorPanelMarkup() {
           <button type="button" data-action="rugby-clear-selected">Clear Selected Trail</button>
           <button type="button" data-action="rugby-clear-all">Clear All Trails</button>
           <button type="button" data-action="rugby-reset-positions">Reset Positions</button>
+          <button type="button" data-action="rugby-save-recording">Save Recording</button>
+          <button type="button" data-action="rugby-load-recording">Load Recording</button>
+          <button type="button" data-action="rugby-play-recording">Play</button>
+          <button type="button" data-action="rugby-pause-recording">Pause / Stop</button>
+          <button type="button" data-action="rugby-reset-playback">Reset Playback</button>
+          <button type="button" data-action="rugby-publish-recording">Save to Preset Moves</button>
         </div>
 
         <div class="rugby-status" aria-live="polite">
           <p><span>Selected:</span> <strong data-rugby-selected-name>9 • Scrum Half</strong></p>
           <p><span>Recording:</span> <strong data-rugby-recording-state>OFF</strong></p>
+          <p><span>Playback:</span> <strong data-rugby-playback-state>IDLE</strong></p>
           <p><span>View:</span> <strong>Move Simulator</strong></p>
           <p><span>Tip:</span> Select marker, click start recording, then drag on pitch.</p>
+          <p class="engineering-helper" data-rugby-simulator-message aria-live="polite"></p>
         </div>
       </aside>
 
@@ -310,10 +380,161 @@ function ensureRugbyWorkspaceModel() {
     drag: null,
     items,
     byId: new Map(items.map((item) => [item.id, item])),
-    dom: null
+    dom: null,
+    loadedRecordingId: '',
+    recordingMeta: { title: '', subtitle: '' },
+    playback: {
+      state: 'idle',
+      rafId: null,
+      duration: 0,
+      elapsed: 0,
+      startedAt: 0,
+      recording: null
+    }
   };
 
   return rugbyWorkspace;
+}
+
+function createRugbyRecordingFromWorkspace(workspace, title, subtitle) {
+  const playerStarts = RUGBY_POSITIONS.map((position) => {
+    const item = workspace.byId.get(position.id);
+    return {
+      id: position.id,
+      name: position.name,
+      startX: item?.startX ?? position.startX,
+      startY: item?.startY ?? position.startY
+    };
+  });
+
+  const ballItem = workspace.byId.get('ball');
+  const paths = {};
+  workspace.items.forEach((item) => {
+    paths[item.id] = item.path.map((point) => ({ x: Number(point.x), y: Number(point.y) }));
+  });
+
+  const duration = Math.max(
+    2200,
+    ...Object.values(paths).map((path) => (Array.isArray(path) ? Math.max(0, path.length - 1) * 280 : 0))
+  );
+
+  return {
+    id: `sim-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    title,
+    subtitle,
+    createdAt: new Date().toISOString(),
+    players: playerStarts,
+    ball: {
+      id: 'ball',
+      name: 'Ball',
+      startX: ballItem?.startX ?? RUGBY_BALL.startX,
+      startY: ballItem?.startY ?? RUGBY_BALL.startY
+    },
+    paths,
+    duration
+  };
+}
+
+function setRugbySimulatorMessage(message) {
+  if (!rugbyWorkspace?.dom?.simulatorMessage) return;
+  rugbyWorkspace.dom.simulatorMessage.textContent = message || '';
+}
+
+function applyRecordingToWorkspace(recording) {
+  if (!rugbyWorkspace || !recording) return;
+
+  rugbyWorkspace.items.forEach((item) => {
+    const startSource =
+      item.id === 'ball'
+        ? recording.ball
+        : Array.isArray(recording.players)
+          ? recording.players.find((player) => player.id === item.id)
+          : null;
+
+    item.startX = Number(startSource?.startX ?? item.startX);
+    item.startY = Number(startSource?.startY ?? item.startY);
+
+    const savedPath = Array.isArray(recording.paths?.[item.id]) ? recording.paths[item.id] : [];
+    item.path = savedPath.map((point) => ({ x: Number(point.x), y: Number(point.y) }));
+    const firstPoint = item.path[0];
+    item.x = Number(firstPoint?.x ?? item.startX);
+    item.y = Number(firstPoint?.y ?? item.startY);
+    item.isRecording = false;
+  });
+}
+
+function getPointAtProgress(path, progress) {
+  if (!Array.isArray(path) || !path.length) return null;
+  if (path.length === 1) return path[0];
+
+  const bounded = Math.min(1, Math.max(0, progress));
+  const scaled = bounded * (path.length - 1);
+  const index = Math.floor(scaled);
+  const nextIndex = Math.min(path.length - 1, index + 1);
+  const localProgress = scaled - index;
+  const from = path[index];
+  const to = path[nextIndex];
+
+  return {
+    x: from.x + (to.x - from.x) * localProgress,
+    y: from.y + (to.y - from.y) * localProgress
+  };
+}
+
+function stopRugbyPlayback({ resetToStart = false } = {}) {
+  if (!rugbyWorkspace) return;
+
+  const { playback } = rugbyWorkspace;
+  if (playback.rafId) {
+    cancelAnimationFrame(playback.rafId);
+    playback.rafId = null;
+  }
+
+  playback.state = 'paused';
+
+  if (resetToStart && playback.recording) {
+    applyRecordingToWorkspace(playback.recording);
+    playback.elapsed = 0;
+  }
+}
+
+function startRugbyPlayback() {
+  if (!rugbyWorkspace) return;
+  const { playback } = rugbyWorkspace;
+  const recording = playback.recording;
+  if (!recording) return;
+
+  playback.duration = Math.max(1000, Number(recording.duration || 2500));
+  playback.startedAt = performance.now() - playback.elapsed;
+  playback.state = 'playing';
+
+  const animate = (timestamp) => {
+    if (!rugbyWorkspace || rugbyWorkspace.playback.state !== 'playing') return;
+    playback.elapsed = Math.max(0, timestamp - playback.startedAt);
+    const progress = Math.min(1, playback.elapsed / playback.duration);
+
+    rugbyWorkspace.items.forEach((item) => {
+      const path = Array.isArray(recording.paths?.[item.id]) ? recording.paths[item.id] : [];
+      const point = getPointAtProgress(path, progress);
+      if (point) {
+        item.x = point.x;
+        item.y = point.y;
+      }
+    });
+
+    renderRugbyBoard();
+
+    if (progress >= 1) {
+      playback.state = 'paused';
+      playback.rafId = null;
+      return;
+    }
+
+    playback.rafId = requestAnimationFrame(animate);
+  };
+
+  if (playback.rafId) cancelAnimationFrame(playback.rafId);
+  playback.rafId = requestAnimationFrame(animate);
 }
 
 function mountRugbySimulator(sheetElement) {
@@ -322,10 +543,15 @@ function mountRugbySimulator(sheetElement) {
   const markersLayer = sheetElement.querySelector('[data-rugby-markers]');
   const trailsLayer = sheetElement.querySelector('[data-rugby-trails]');
   const selector = sheetElement.querySelector('[data-rugby-selector]');
+  const recordingTitle = sheetElement.querySelector('[data-rugby-recording-title]');
+  const recordingSubtitle = sheetElement.querySelector('[data-rugby-recording-subtitle]');
+  const recordingSelect = sheetElement.querySelector('[data-rugby-recording-select]');
   const selectedName = sheetElement.querySelector('[data-rugby-selected-name]');
   const recordingState = sheetElement.querySelector('[data-rugby-recording-state]');
+  const playbackState = sheetElement.querySelector('[data-rugby-playback-state]');
+  const simulatorMessage = sheetElement.querySelector('[data-rugby-simulator-message]');
 
-  if (!pitch || !markersLayer || !trailsLayer || !selector || !selectedName || !recordingState) {
+  if (!pitch || !markersLayer || !trailsLayer || !selector || !selectedName || !recordingState || !playbackState) {
     return;
   }
 
@@ -374,13 +600,31 @@ function mountRugbySimulator(sheetElement) {
     markersLayer,
     trailsLayer,
     selector,
+    recordingTitle,
+    recordingSubtitle,
+    recordingSelect,
     selectedName,
     recordingState,
+    playbackState,
+    simulatorMessage,
     cleanup: () => {
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
     }
   };
+
+  if (rugbyPanelState.pendingRecordingId) {
+    const selectedRecording = loadRugbySimulatorRecordings().find((recording) => recording.id === rugbyPanelState.pendingRecordingId);
+    if (selectedRecording) {
+      workspace.loadedRecordingId = selectedRecording.id;
+      workspace.recordingMeta = { title: selectedRecording.title, subtitle: selectedRecording.subtitle || '' };
+      workspace.playback.recording = selectedRecording;
+      workspace.playback.elapsed = 0;
+      applyRecordingToWorkspace(selectedRecording);
+      setRugbySimulatorMessage(`Loaded "${selectedRecording.title}" from Preset Moves.`);
+    }
+    rugbyPanelState.pendingRecordingId = null;
+  }
 
   renderRugbyBoard();
 }
@@ -390,6 +634,7 @@ function unmountRugbySimulator() {
     return;
   }
 
+  stopRugbyPlayback();
   rugbyWorkspace.dom.cleanup();
   rugbyWorkspace.dom = null;
   rugbyWorkspace.drag = null;
@@ -405,7 +650,7 @@ function renderRugbyBoard() {
     return;
   }
 
-  const { items, selectedId, byId, dom } = rugbyWorkspace;
+  const { items, selectedId, byId, dom, playback } = rugbyWorkspace;
 
   dom.markersLayer.innerHTML = items
     .map((item) => {
@@ -446,6 +691,23 @@ function renderRugbyBoard() {
   dom.selectedName.textContent = selectedItem ? (selectedItem.id === 'ball' ? 'Ball' : `${selectedItem.id} • ${selectedItem.name}`) : '—';
   dom.recordingState.textContent = selectedItem?.isRecording ? 'ON' : 'OFF';
   dom.recordingState.classList.toggle('is-on', Boolean(selectedItem?.isRecording));
+  dom.playbackState.textContent = playback.state.toUpperCase();
+  dom.playbackState.classList.toggle('is-on', playback.state === 'playing');
+
+  if (dom.recordingTitle && document.activeElement !== dom.recordingTitle) {
+    dom.recordingTitle.value = rugbyWorkspace.recordingMeta.title;
+  }
+
+  if (dom.recordingSubtitle && document.activeElement !== dom.recordingSubtitle) {
+    dom.recordingSubtitle.value = rugbyWorkspace.recordingMeta.subtitle;
+  }
+
+  if (dom.recordingSelect) {
+    const selectValue = rugbyWorkspace.loadedRecordingId;
+    if (dom.recordingSelect.value !== selectValue) {
+      dom.recordingSelect.value = selectValue;
+    }
+  }
 }
 
 function renderRugbyChildView(sheetElement, nextView) {
@@ -676,6 +938,18 @@ function handleRugbyInput(event, sheetElement) {
     return;
   }
 
+  const titleInput = event.target.closest('[data-rugby-recording-title]');
+  if (titleInput) {
+    rugbyWorkspace.recordingMeta.title = String(titleInput.value ?? '').trim();
+    return;
+  }
+
+  const subtitleInput = event.target.closest('[data-rugby-recording-subtitle]');
+  if (subtitleInput) {
+    rugbyWorkspace.recordingMeta.subtitle = String(subtitleInput.value ?? '').trim();
+    return;
+  }
+
   const selector = event.target.closest('[data-rugby-selector]');
   if (!selector) {
     return;
@@ -753,6 +1027,10 @@ function handleRugbyPointerDown(event, sheetElement) {
     return;
   }
 
+  if (rugbyWorkspace.playback.state === 'playing') {
+    return;
+  }
+
   rugbyWorkspace.selectedId = markerId;
   const markerRect = markerButton.getBoundingClientRect();
   rugbyWorkspace.drag = {
@@ -800,6 +1078,7 @@ function handleRugbyClick(event, sheetElement) {
     const existingMoves = loadRugbyMoves();
     existingMoves.unshift({
       id: `move-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+      type: 'external-link',
       title,
       description: String(notesInput?.value ?? '').trim(),
       videoUrl: normalizedUrl ?? '',
@@ -831,6 +1110,19 @@ function handleRugbyClick(event, sheetElement) {
     return;
   }
 
+  if (actionButton.dataset.action === 'rugby-open-simulator-move') {
+    const recordingId = String(actionButton.dataset.recordingId ?? '').trim();
+    if (!recordingId) {
+      showRugbyError(sheetElement, 'This preset move does not have a simulator recording attached.');
+      return;
+    }
+
+    rugbyPanelState.pendingRecordingId = recordingId;
+    clearRugbyError(sheetElement);
+    renderRugbyChildView(sheetElement, 'simulator');
+    return;
+  }
+
   if (!rugbyWorkspace || !rugbyWorkspace.dom || !sheetElement.contains(rugbyWorkspace.dom.pitch)) {
     return;
   }
@@ -841,28 +1133,35 @@ function handleRugbyClick(event, sheetElement) {
   }
 
   if (actionButton.dataset.action === 'rugby-start-recording') {
+    stopRugbyPlayback();
     selectedItem.isRecording = true;
     if (!selectedItem.path.length) {
       selectedItem.path.push({ x: selectedItem.x, y: selectedItem.y });
     }
+    setRugbySimulatorMessage(`Recording started for ${selectedItem.id === 'ball' ? 'Ball' : `${selectedItem.id} • ${selectedItem.name}`}.`);
   }
 
   if (actionButton.dataset.action === 'rugby-stop-recording') {
     selectedItem.isRecording = false;
+    setRugbySimulatorMessage('Recording stopped.');
   }
 
   if (actionButton.dataset.action === 'rugby-clear-selected') {
     selectedItem.path = [];
+    setRugbySimulatorMessage('Selected trail cleared.');
   }
 
   if (actionButton.dataset.action === 'rugby-clear-all') {
+    stopRugbyPlayback();
     rugbyWorkspace.items.forEach((item) => {
       item.path = [];
       item.isRecording = false;
     });
+    setRugbySimulatorMessage('All trails cleared.');
   }
 
   if (actionButton.dataset.action === 'rugby-reset-positions') {
+    stopRugbyPlayback();
     rugbyWorkspace.items.forEach((item) => {
       item.x = item.startX;
       item.y = item.startY;
@@ -872,6 +1171,117 @@ function handleRugbyClick(event, sheetElement) {
 
     rugbyWorkspace.drag = null;
     rugbyWorkspace.dom.pitch.classList.remove('is-dragging');
+    setRugbySimulatorMessage('Board reset to starting positions.');
+  }
+
+  if (actionButton.dataset.action === 'rugby-save-recording') {
+    const title = String(rugbyWorkspace.dom.recordingTitle?.value ?? rugbyWorkspace.recordingMeta.title ?? '').trim();
+    const subtitle = String(rugbyWorkspace.dom.recordingSubtitle?.value ?? rugbyWorkspace.recordingMeta.subtitle ?? '').trim();
+
+    if (!title) {
+      setRugbySimulatorMessage('Move title is required before saving.');
+      renderRugbyBoard();
+      return;
+    }
+
+    const recording = createRugbyRecordingFromWorkspace(rugbyWorkspace, title, subtitle);
+    const existingRecordings = loadRugbySimulatorRecordings();
+    existingRecordings.unshift(recording);
+    saveRugbySimulatorRecordings(existingRecordings);
+
+    rugbyWorkspace.loadedRecordingId = recording.id;
+    rugbyWorkspace.recordingMeta = { title, subtitle };
+    rugbyWorkspace.playback.recording = recording;
+    rugbyWorkspace.playback.elapsed = 0;
+    if (rugbyWorkspace.dom.recordingSelect) {
+      rugbyWorkspace.dom.recordingSelect.innerHTML = getRugbyRecordingOptionsMarkup(recording.id);
+      rugbyWorkspace.dom.recordingSelect.value = recording.id;
+    }
+
+    setRugbySimulatorMessage(`Saved recording "${title}".`);
+  }
+
+  if (actionButton.dataset.action === 'rugby-load-recording') {
+    const requestedId = String(rugbyWorkspace.dom.recordingSelect?.value ?? '').trim();
+    if (!requestedId) {
+      setRugbySimulatorMessage('Choose a saved recording to load.');
+      renderRugbyBoard();
+      return;
+    }
+
+    const selectedRecording = loadRugbySimulatorRecordings().find((recording) => recording.id === requestedId);
+    if (!selectedRecording) {
+      setRugbySimulatorMessage('Recording not found. It may have been removed.');
+      renderRugbyBoard();
+      return;
+    }
+
+    stopRugbyPlayback({ resetToStart: true });
+    rugbyWorkspace.loadedRecordingId = selectedRecording.id;
+    rugbyWorkspace.recordingMeta = { title: selectedRecording.title, subtitle: selectedRecording.subtitle || '' };
+    rugbyWorkspace.playback.recording = selectedRecording;
+    rugbyWorkspace.playback.elapsed = 0;
+    applyRecordingToWorkspace(selectedRecording);
+    setRugbySimulatorMessage(`Loaded recording "${selectedRecording.title}".`);
+  }
+
+  if (actionButton.dataset.action === 'rugby-play-recording') {
+    const requestedId = String(rugbyWorkspace.dom.recordingSelect?.value || rugbyWorkspace.loadedRecordingId || '').trim();
+    const selectedRecording = requestedId ? loadRugbySimulatorRecordings().find((recording) => recording.id === requestedId) : rugbyWorkspace.playback.recording;
+    if (!selectedRecording) {
+      setRugbySimulatorMessage('Save or load a recording before playback.');
+      renderRugbyBoard();
+      return;
+    }
+
+    rugbyWorkspace.loadedRecordingId = selectedRecording.id;
+    rugbyWorkspace.playback.recording = selectedRecording;
+    if (rugbyWorkspace.playback.state === 'idle') {
+      applyRecordingToWorkspace(selectedRecording);
+    }
+    startRugbyPlayback();
+    setRugbySimulatorMessage(`Playing "${selectedRecording.title}".`);
+  }
+
+  if (actionButton.dataset.action === 'rugby-pause-recording') {
+    stopRugbyPlayback();
+    setRugbySimulatorMessage('Playback paused.');
+  }
+
+  if (actionButton.dataset.action === 'rugby-reset-playback') {
+    stopRugbyPlayback({ resetToStart: true });
+    rugbyWorkspace.playback.state = 'idle';
+    setRugbySimulatorMessage('Playback reset to start.');
+  }
+
+  if (actionButton.dataset.action === 'rugby-publish-recording') {
+    const recordingId = String(rugbyWorkspace.dom.recordingSelect?.value || rugbyWorkspace.loadedRecordingId || '').trim();
+    if (!recordingId) {
+      setRugbySimulatorMessage('Save a recording first, then publish it to Preset Moves.');
+      renderRugbyBoard();
+      return;
+    }
+
+    const recording = loadRugbySimulatorRecordings().find((item) => item.id === recordingId);
+    if (!recording) {
+      setRugbySimulatorMessage('Recording not found. Please load it again.');
+      renderRugbyBoard();
+      return;
+    }
+
+    const moves = loadRugbyMoves();
+    moves.unshift({
+      id: `preset-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+      type: 'simulator-move',
+      title: recording.title,
+      description: recording.subtitle || 'Simulator move recording.',
+      sourceLabel: 'Simulator',
+      recordingId: recording.id,
+      thumbnailUrl: '',
+      createdAt: new Date().toISOString()
+    });
+    saveRugbyMoves(moves);
+    setRugbySimulatorMessage(`Published "${recording.title}" to Preset Moves.`);
   }
 
   renderRugbyBoard();

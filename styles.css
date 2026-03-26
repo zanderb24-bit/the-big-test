@@ -1266,6 +1266,10 @@ button:disabled {
   font-size: 0.86rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
 }
 
 .rugby-move-meta p {
@@ -1285,6 +1289,29 @@ button:disabled {
 
 .rugby-move-meta-footer a {
   color: #d6ffe5;
+}
+
+.rugby-move-meta-footer button {
+  padding: 0.38rem 0.58rem;
+  border-radius: 0.45rem;
+  font-size: 0.67rem;
+  letter-spacing: 0.08em;
+}
+
+.rugby-move-badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(255, 232, 176, 0.42);
+  border-radius: 999px;
+  padding: 0.08rem 0.42rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.09em;
+  color: #ffeeb4;
+  background: rgba(74, 46, 12, 0.55);
+}
+
+[data-rugby-simulator-message] {
+  min-height: 1.2em;
 }
 
 @media (max-width: 860px) {
