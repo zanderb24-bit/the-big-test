@@ -484,6 +484,198 @@ h1 {
   font-size: 0.86rem;
 }
 
+.rugby-parent-area {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.rugby-child-nav {
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.rugby-child-tab {
+  min-width: 150px;
+}
+
+.rugby-child-tab.is-active {
+  border-color: var(--accent);
+  color: #ddffeb;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 0 0 1px rgba(86, 255, 150, 0.3),
+    0 8px 16px rgba(0, 0, 0, 0.34);
+}
+
+.rugby-child-panel {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(230px, 280px) minmax(0, 1fr);
+}
+
+.rugby-controls {
+  display: grid;
+  align-content: start;
+  gap: 0.8rem;
+  padding: 0.9rem;
+  border-radius: 0.8rem;
+  border: 1px solid rgba(86, 255, 150, 0.28);
+  background: linear-gradient(180deg, rgba(20, 44, 30, 0.44), rgba(6, 16, 11, 0.78));
+}
+
+.rugby-control-block {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.rugby-control-block select {
+  width: 100%;
+  border-radius: 0.55rem;
+  border: 1px solid rgba(86, 255, 150, 0.34);
+  background: rgba(1, 10, 6, 0.78);
+  color: #e8ffee;
+  padding: 0.58rem 0.65rem;
+  font: inherit;
+}
+
+.rugby-control-block select:focus-visible {
+  outline: 2px solid rgba(86, 255, 150, 0.78);
+  outline-offset: 1px;
+}
+
+.rugby-control-actions {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.rugby-status {
+  display: grid;
+  gap: 0.45rem;
+  border: 1px solid rgba(86, 255, 150, 0.22);
+  border-radius: 0.65rem;
+  padding: 0.7rem;
+  background: rgba(2, 12, 8, 0.62);
+}
+
+.rugby-status p {
+  color: #d8f4e2;
+  font-size: 0.82rem;
+}
+
+.rugby-status span {
+  color: #98bca5;
+}
+
+.rugby-status strong {
+  color: #ebfff2;
+}
+
+.rugby-status strong.is-on {
+  color: #61ff9f;
+  text-shadow: 0 0 10px rgba(86, 255, 150, 0.4);
+}
+
+.rugby-board-wrap {
+  min-width: 0;
+}
+
+.rugby-pitch {
+  position: relative;
+  min-height: 520px;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(86, 255, 150, 0.34);
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.015) 0 32px, rgba(0, 0, 0, 0) 32px 64px),
+    linear-gradient(180deg, rgba(16, 75, 42, 0.86), rgba(8, 42, 24, 0.96));
+  box-shadow: inset 0 0 0 1px rgba(12, 31, 20, 0.8), 0 10px 24px rgba(0, 0, 0, 0.34);
+}
+
+.rugby-pitch.is-dragging {
+  cursor: grabbing;
+}
+
+.rugby-pitch-lines,
+.rugby-trails-layer,
+.rugby-markers-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.rugby-pitch-lines {
+  width: 100%;
+  height: 100%;
+}
+
+.rugby-pitch-lines rect,
+.rugby-pitch-lines line {
+  fill: none;
+  stroke: rgba(230, 255, 238, 0.5);
+  stroke-width: 0.4;
+}
+
+.rugby-trails-layer {
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.rugby-trail {
+  fill: none;
+  stroke: rgba(255, 214, 122, 0.74);
+  stroke-width: 0.72;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.rugby-trail.is-selected {
+  stroke: #fff2a0;
+  stroke-width: 0.92;
+}
+
+.rugby-marker {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  padding: 0;
+  min-width: 0;
+  border: 1px solid rgba(228, 255, 239, 0.5);
+  color: #eefff4;
+  font-size: 0.78rem;
+  letter-spacing: 0.01em;
+  font-weight: 800;
+  text-transform: none;
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.42);
+}
+
+.rugby-marker.is-player {
+  background: radial-gradient(circle at 30% 28%, rgba(164, 255, 201, 0.55), rgba(20, 84, 49, 0.95) 68%);
+}
+
+.rugby-marker.is-ball {
+  width: 42px;
+  height: 30px;
+  border-radius: 45% 55% 52% 48% / 52% 45% 55% 48%;
+  background: radial-gradient(circle at 30% 32%, rgba(255, 228, 184, 0.7), rgba(107, 63, 24, 0.95) 68%);
+  border-color: rgba(255, 219, 166, 0.68);
+}
+
+.rugby-marker.is-selected {
+  border-color: #f9ffdc;
+  box-shadow:
+    0 0 0 2px rgba(255, 245, 177, 0.46),
+    0 0 18px rgba(255, 240, 169, 0.36),
+    0 3px 14px rgba(0, 0, 0, 0.42);
+}
+
+.rugby-marker:hover,
+.rugby-marker:focus-visible {
+  transform: translate(-50%, -50%) scale(1.04);
+}
+
 .rugby-workspace {
   display: grid;
   gap: 1rem;
@@ -927,6 +1119,14 @@ button:disabled {
 }
 
 @media (max-width: 860px) {
+  .rugby-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .rugby-pitch {
+    min-height: 460px;
+  }
+
   .rugby-workspace {
     grid-template-columns: 1fr;
   }
