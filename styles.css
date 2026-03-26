@@ -359,27 +359,75 @@ button:disabled {
 .alt-assets-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1rem;
+  gap: 0.75rem;
+  align-items: stretch;
 }
 
 .asset-card {
-  min-height: 110px;
+  min-height: 108px;
+  padding: 0;
+  overflow: hidden;
   display: flex;
+  align-items: stretch;
+}
+
+.set-main-btn {
+  width: 100%;
+  height: 100%;
+  min-height: 108px;
+  border: 0;
+  border-radius: 0;
+  padding: 0.85rem 0.7rem;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 0.32rem;
+  text-align: center;
+  line-height: 1.2;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  background: linear-gradient(180deg, rgba(20, 45, 31, 0.65), rgba(7, 18, 12, 0.92));
+  color: #d8ffe8;
+  box-shadow: none;
 }
 
-.set-main-btn {
-  align-self: flex-start;
-  padding: 0.45rem 0.8rem;
-  font-size: 0.72rem;
+.set-main-btn:hover,
+.set-main-btn:focus-visible {
+  transform: none;
+  background: linear-gradient(180deg, rgba(32, 60, 42, 0.82), rgba(10, 23, 15, 0.96));
 }
 
-.set-main-btn {
-  padding: 0.65rem 1.1rem;
-  min-width: 100%;
-  font-size: 1.1rem;
-  letter-spacing: 0.16em;
+.asset-name {
+  display: block;
+  width: 100%;
+  font-size: 0.97rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.asset-ticker {
+  display: block;
+  width: 100%;
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.asset-card.selected .set-main-btn {
+  background: linear-gradient(180deg, rgba(44, 82, 58, 0.88), rgba(11, 27, 18, 0.96));
+}
+
+.asset-card.selected .asset-ticker {
+  color: #cffff0;
 }
 
 .tradingview-widget-container {
@@ -450,7 +498,7 @@ button:disabled {
 
 @media (max-width: 980px) {
   .alt-assets-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -477,12 +525,17 @@ button:disabled {
     width: 100%;
   }
 
-  .stats-grid,
-  .alt-assets-grid {
+  .stats-grid {
     grid-template-columns: 1fr;
   }
 
   button {
     width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .alt-assets-grid {
+    grid-template-columns: 1fr;
   }
 }
