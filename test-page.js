@@ -7,9 +7,9 @@ const CATEGORY_CONTENT = {
   },
   rugby: {
     title: 'Rugby',
-    description: 'Preset moves library with quick access to video and reference links.',
-    bullets: ['Moves library', 'Video references', 'Saved locally'],
-    tagLine: 'Focus: prep • replay • execution'
+    description: 'Interactive move-builder for position-by-position planning.',
+    bullets: ['Tactics board', 'Player and ball trails', 'Layered move design'],
+    tagLine: 'Focus: design • timing • execution'
   },
   'counter-strike-2': {
     title: 'Counter-Strike 2',
@@ -39,6 +39,27 @@ const ENGINEERING_TOPICS = {
 };
 
 const RUGBY_MOVES_STORAGE_KEY = 'rugby-preset-moves';
+const RUGBY_POSITIONS = [
+  { id: '1', label: '1', name: 'Loosehead Prop', startX: 28, startY: 20 },
+  { id: '2', label: '2', name: 'Hooker', startX: 35, startY: 24 },
+  { id: '3', label: '3', name: 'Tighthead Prop', startX: 42, startY: 20 },
+  { id: '4', label: '4', name: 'Lock', startX: 30, startY: 30 },
+  { id: '5', label: '5', name: 'Lock', startX: 40, startY: 30 },
+  { id: '6', label: '6', name: 'Blindside Flanker', startX: 24, startY: 37 },
+  { id: '7', label: '7', name: 'Openside Flanker', startX: 46, startY: 37 },
+  { id: '8', label: '8', name: 'Number 8', startX: 35, startY: 40 },
+  { id: '9', label: '9', name: 'Scrum Half', startX: 48, startY: 46 },
+  { id: '10', label: '10', name: 'Fly Half', startX: 56, startY: 52 },
+  { id: '11', label: '11', name: 'Left Wing', startX: 18, startY: 60 },
+  { id: '12', label: '12', name: 'Inside Centre', startX: 45, startY: 59 },
+  { id: '13', label: '13', name: 'Outside Centre', startX: 54, startY: 61 },
+  { id: '14', label: '14', name: 'Right Wing', startX: 82, startY: 60 },
+  { id: '15', label: '15', name: 'Fullback', startX: 68, startY: 74 }
+];
+const RUGBY_BALL = { id: 'ball', label: 'Ball', name: 'Ball', startX: 50, startY: 48 };
+
+let rugbyPanelState = { activeView: 'moves' };
+let rugbyWorkspace = null;
 
 function getEngineeringStorageKey(topicKey, field) {
   return `engineering-${topicKey}-${field}`;
@@ -240,13 +261,9 @@ function getRugbyMovesMarkup() {
   return `<div class="rugby-moves-grid">${cards}</div>`;
 }
 
-function renderRugbySheet(sheetElement) {
-  sheetElement.innerHTML = `
-    <p class="sheet-tag">Rugby Workspace • Preset Moves Library</p>
-    <h3>Rugby</h3>
-    <p class="sheet-description">Save reusable rugby move references and open them quickly from visual cards.</p>
-
-    <section class="rugby-workspace">
+function getRugbyMovesPanelMarkup() {
+  return `
+    <div class="rugby-preset-panel">
       <form class="rugby-form" data-rugby-form>
         <div class="rugby-form-grid">
           <label class="engineering-label" for="rugby-move-title">Move title</label>
@@ -269,8 +286,290 @@ function renderRugbySheet(sheetElement) {
       <section class="rugby-library" data-rugby-library aria-live="polite">
         ${getRugbyMovesMarkup()}
       </section>
+    </div>
+  `;
+}
+
+function getRugbySimulatorPanelMarkup() {
+  const selectOptions = [...RUGBY_POSITIONS, RUGBY_BALL]
+    .map((item) => `<option value="${item.id}">${item.id === 'ball' ? 'Ball' : `${item.id} • ${item.name}`}</option>`)
+    .join('');
+
+  return `
+    <section class="rugby-workspace">
+      <aside class="rugby-controls">
+        <div class="rugby-control-block">
+          <label class="engineering-label" for="rugby-item-select">Selected marker</label>
+          <select id="rugby-item-select" data-rugby-selector>
+            ${selectOptions}
+          </select>
+        </div>
+
+        <div class="rugby-control-actions">
+          <button type="button" data-action="rugby-start-recording">Start Recording</button>
+          <button type="button" data-action="rugby-stop-recording">Stop Recording</button>
+          <button type="button" data-action="rugby-clear-selected">Clear Selected Trail</button>
+          <button type="button" data-action="rugby-clear-all">Clear All Trails</button>
+          <button type="button" data-action="rugby-reset-positions">Reset Positions</button>
+        </div>
+
+        <div class="rugby-status" aria-live="polite">
+          <p><span>Selected:</span> <strong data-rugby-selected-name>9 • Scrum Half</strong></p>
+          <p><span>Recording:</span> <strong data-rugby-recording-state>OFF</strong></p>
+          <p><span>Tip:</span> click marker to select, then drag on pitch.</p>
+        </div>
+      </aside>
+
+      <section class="rugby-board-wrap">
+        <div class="rugby-pitch" data-rugby-pitch>
+          <svg class="rugby-pitch-lines" viewBox="0 0 100 100" aria-hidden="true">
+            <rect x="1" y="1" width="98" height="98" />
+            <line x1="1" y1="50" x2="99" y2="50" />
+            <line x1="1" y1="22" x2="99" y2="22" />
+            <line x1="1" y1="78" x2="99" y2="78" />
+            <line x1="15" y1="1" x2="15" y2="99" />
+            <line x1="85" y1="1" x2="85" y2="99" />
+          </svg>
+          <svg class="rugby-trails-layer" viewBox="0 0 100 100" data-rugby-trails aria-hidden="true"></svg>
+          <div class="rugby-markers-layer" data-rugby-markers></div>
+        </div>
+      </section>
     </section>
   `;
+}
+
+function renderRugbySheet(sheetElement) {
+  sheetElement.innerHTML = `
+    <p class="sheet-tag">Rugby Workspace • Preset Moves + Simulator</p>
+    <h3>Rugby</h3>
+    <p class="sheet-description">Keep your preset move library and switch to the Move Simulator board for drag-and-record planning.</p>
+
+    <section class="rugby-parent-area">
+      <div class="rugby-child-nav" role="tablist" aria-label="Rugby child views">
+        <button type="button" class="rugby-child-tab ${rugbyPanelState.activeView === 'moves' ? 'is-active' : ''}" data-rugby-view-btn="moves" role="tab" aria-selected="${rugbyPanelState.activeView === 'moves'}">Preset Moves</button>
+        <button type="button" class="rugby-child-tab ${rugbyPanelState.activeView === 'simulator' ? 'is-active' : ''}" data-rugby-view-btn="simulator" role="tab" aria-selected="${rugbyPanelState.activeView === 'simulator'}">Move Simulator</button>
+      </div>
+
+      <div class="rugby-child-panel" data-rugby-child-content></div>
+    </section>
+  `;
+
+  renderRugbyChildView(sheetElement, rugbyPanelState.activeView);
+}
+
+function renderRugbyChildView(sheetElement, nextView) {
+  const childContent = sheetElement.querySelector('[data-rugby-child-content]');
+  if (!childContent) {
+    return;
+  }
+
+  rugbyPanelState.activeView = nextView === 'simulator' ? 'simulator' : 'moves';
+  const viewButtons = sheetElement.querySelectorAll('[data-rugby-view-btn]');
+  viewButtons.forEach((button) => {
+    const isActive = button.dataset.rugbyViewBtn === rugbyPanelState.activeView;
+    button.classList.toggle('is-active', isActive);
+    button.setAttribute('aria-selected', String(isActive));
+  });
+
+  if (rugbyPanelState.activeView === 'moves') {
+    unmountRugbySimulator();
+    childContent.innerHTML = getRugbyMovesPanelMarkup();
+    return;
+  }
+
+  childContent.innerHTML = getRugbySimulatorPanelMarkup();
+  mountRugbySimulator(sheetElement);
+}
+
+function createRugbyItems() {
+  return [...RUGBY_POSITIONS, RUGBY_BALL].map((item) => ({
+    ...item,
+    x: item.startX,
+    y: item.startY,
+    path: [],
+    isRecording: false
+  }));
+}
+
+function ensureRugbyWorkspaceModel() {
+  if (rugbyWorkspace) {
+    return rugbyWorkspace;
+  }
+
+  const items = createRugbyItems();
+  rugbyWorkspace = {
+    selectedId: '9',
+    drag: null,
+    items,
+    byId: new Map(items.map((item) => [item.id, item])),
+    dom: null
+  };
+
+  return rugbyWorkspace;
+}
+
+function mountRugbySimulator(sheetElement) {
+  const workspace = ensureRugbyWorkspaceModel();
+  const pitch = sheetElement.querySelector('[data-rugby-pitch]');
+  const markersLayer = sheetElement.querySelector('[data-rugby-markers]');
+  const trailsLayer = sheetElement.querySelector('[data-rugby-trails]');
+  const selector = sheetElement.querySelector('[data-rugby-selector]');
+  const selectedName = sheetElement.querySelector('[data-rugby-selected-name]');
+  const recordingState = sheetElement.querySelector('[data-rugby-recording-state]');
+
+  if (!pitch || !markersLayer || !trailsLayer || !selector || !selectedName || !recordingState) {
+    return;
+  }
+
+  const onPointerMove = (event) => {
+    if (!workspace.drag || !workspace.dom) {
+      return;
+    }
+
+    const { id, pointerId, offsetX, offsetY } = workspace.drag;
+    if (pointerId !== event.pointerId) {
+      return;
+    }
+
+    const item = workspace.byId.get(id);
+    if (!item) {
+      return;
+    }
+
+    const pitchRect = workspace.dom.pitch.getBoundingClientRect();
+    const nextX = Math.min(99, Math.max(1, ((event.clientX - pitchRect.left - offsetX) / pitchRect.width) * 100));
+    const nextY = Math.min(99, Math.max(1, ((event.clientY - pitchRect.top - offsetY) / pitchRect.height) * 100));
+
+    item.x = nextX;
+    item.y = nextY;
+
+    if (item.isRecording) {
+      const lastPoint = item.path[item.path.length - 1];
+      const hasMoved = !lastPoint || Math.hypot(lastPoint.x - nextX, lastPoint.y - nextY) > 0.45;
+      if (hasMoved) {
+        item.path.push({ x: nextX, y: nextY });
+      }
+    }
+
+    renderRugbyBoard();
+  };
+
+  const onPointerUp = (event) => {
+    if (!workspace.drag || !workspace.dom) {
+      return;
+    }
+
+    if (workspace.drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    workspace.drag = null;
+    workspace.dom.pitch.classList.remove('is-dragging');
+  };
+
+  window.addEventListener('pointermove', onPointerMove);
+  window.addEventListener('pointerup', onPointerUp);
+
+  workspace.dom = {
+    pitch,
+    markersLayer,
+    trailsLayer,
+    selector,
+    selectedName,
+    recordingState,
+    cleanup: () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    }
+  };
+
+  renderRugbyBoard();
+}
+
+function unmountRugbySimulator() {
+  if (!rugbyWorkspace || !rugbyWorkspace.dom) {
+    return;
+  }
+
+  rugbyWorkspace.dom.cleanup();
+  rugbyWorkspace.dom = null;
+  rugbyWorkspace.drag = null;
+}
+
+function destroyRugbyWorkspace() {
+  unmountRugbySimulator();
+  rugbyWorkspace = null;
+}
+
+function renderRugbyBoard() {
+  if (!rugbyWorkspace || !rugbyWorkspace.dom) {
+    return;
+  }
+
+  const { items, selectedId, byId, dom } = rugbyWorkspace;
+
+  dom.markersLayer.innerHTML = items
+    .map((item) => {
+      const isSelected = item.id === selectedId;
+      const markerClass = ['rugby-marker', item.id === 'ball' ? 'is-ball' : 'is-player', isSelected ? 'is-selected' : '']
+        .filter(Boolean)
+        .join(' ');
+      const markerLabel = item.id === 'ball' ? 'B' : item.label;
+      const titleText = `${item.id === 'ball' ? 'Ball' : `${item.id} • ${item.name}`}${item.isRecording ? ' (Recording)' : ''}`;
+
+      return `
+        <button
+          type="button"
+          class="${markerClass}"
+          style="left:${item.x}%; top:${item.y}%;"
+          data-rugby-marker="${item.id}"
+          title="${sanitizeText(titleText)}"
+          aria-label="${sanitizeText(titleText)}">
+          ${sanitizeText(markerLabel)}
+        </button>
+      `;
+    })
+    .join('');
+
+  dom.trailsLayer.innerHTML = items
+    .map((item) => {
+      if (!item.path.length) {
+        return '';
+      }
+
+      const points = item.path.map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ');
+      return `<polyline class="rugby-trail ${item.id === selectedId ? 'is-selected' : ''}" data-trail-id="${item.id}" points="${points}" />`;
+    })
+    .join('');
+
+  const selectedItem = byId.get(selectedId);
+  dom.selector.value = selectedId;
+  dom.selectedName.textContent = selectedItem ? `${selectedItem.id === 'ball' ? 'Ball' : `${selectedItem.id} • ${selectedItem.name}`}` : '—';
+  dom.recordingState.textContent = selectedItem?.isRecording ? 'ON' : 'OFF';
+  dom.recordingState.classList.toggle('is-on', Boolean(selectedItem?.isRecording));
+}
+
+function clearRugbyError(sheetElement) {
+  const errorElement = sheetElement.querySelector('[data-rugby-error]');
+  if (errorElement) {
+    errorElement.textContent = '';
+  }
+}
+
+function showRugbyError(sheetElement, message) {
+  const errorElement = sheetElement.querySelector('[data-rugby-error]');
+  if (errorElement) {
+    errorElement.textContent = message;
+  }
+}
+
+function refreshRugbyMoves(sheetElement) {
+  const libraryElement = sheetElement.querySelector('[data-rugby-library]');
+  if (!libraryElement) {
+    return;
+  }
+
+  libraryElement.innerHTML = getRugbyMovesMarkup();
 }
 
 function loadTopicNotes(topicKey) {
@@ -400,11 +699,13 @@ function renderCategorySheet(sheetElement, categoryKey) {
   const content = CATEGORY_CONTENT[categoryKey];
 
   if (!content) {
+    destroyRugbyWorkspace();
     sheetElement.innerHTML = '<p class="sheet-placeholder">Choose a category above to view details.</p>';
     return;
   }
 
   if (categoryKey === 'engineering') {
+    unmountRugbySimulator();
     renderEngineeringSheet(sheetElement);
     return;
   }
@@ -414,6 +715,7 @@ function renderCategorySheet(sheetElement, categoryKey) {
     return;
   }
 
+  unmountRugbySimulator();
   renderBasicCategorySheet(sheetElement, content);
 }
 
@@ -426,15 +728,6 @@ function refreshTopicLinks(sheetElement, topicKey) {
   linksContainer.innerHTML = getTopicLinksMarkup(topicKey);
 }
 
-function refreshRugbyMoves(sheetElement) {
-  const libraryElement = sheetElement.querySelector('[data-rugby-library]');
-  if (!libraryElement) {
-    return;
-  }
-
-  libraryElement.innerHTML = getRugbyMovesMarkup();
-}
-
 function clearTopicError(sheetElement, topicKey) {
   const errorElement = sheetElement.querySelector(`[data-topic-error="${topicKey}"]`);
   if (errorElement) {
@@ -444,20 +737,6 @@ function clearTopicError(sheetElement, topicKey) {
 
 function showTopicError(sheetElement, topicKey, message) {
   const errorElement = sheetElement.querySelector(`[data-topic-error="${topicKey}"]`);
-  if (errorElement) {
-    errorElement.textContent = message;
-  }
-}
-
-function clearRugbyError(sheetElement) {
-  const errorElement = sheetElement.querySelector('[data-rugby-error]');
-  if (errorElement) {
-    errorElement.textContent = '';
-  }
-}
-
-function showRugbyError(sheetElement, message) {
-  const errorElement = sheetElement.querySelector('[data-rugby-error]');
   if (errorElement) {
     errorElement.textContent = message;
   }
@@ -480,6 +759,21 @@ function handleEngineeringInput(event, sheetElement) {
   if (statusText) {
     statusText.textContent = 'Notes saved.';
   }
+}
+
+function handleRugbyInput(event, sheetElement) {
+  const selector = event.target.closest('[data-rugby-selector]');
+  if (!selector || !rugbyWorkspace?.dom || rugbyPanelState.activeView !== 'simulator') {
+    return;
+  }
+
+  const selectedId = String(selector.value ?? '').trim();
+  if (!rugbyWorkspace.byId.has(selectedId)) {
+    return;
+  }
+
+  rugbyWorkspace.selectedId = selectedId;
+  renderRugbyBoard();
 }
 
 function handleEngineeringClick(event, sheetElement) {
@@ -538,6 +832,41 @@ function handleEngineeringClick(event, sheetElement) {
   }
 }
 
+function handleRugbyPointerDown(event, sheetElement) {
+  if (rugbyPanelState.activeView !== 'simulator' || !rugbyWorkspace?.dom || !sheetElement.contains(rugbyWorkspace.dom.pitch)) {
+    return;
+  }
+
+  const markerButton = event.target.closest('[data-rugby-marker]');
+  if (!markerButton) {
+    return;
+  }
+
+  const markerId = String(markerButton.dataset.rugbyMarker ?? '').trim();
+  if (!rugbyWorkspace.byId.has(markerId)) {
+    return;
+  }
+
+  event.preventDefault();
+  rugbyWorkspace.selectedId = markerId;
+
+  const markerRect = markerButton.getBoundingClientRect();
+  rugbyWorkspace.drag = {
+    id: markerId,
+    pointerId: event.pointerId,
+    offsetX: markerRect.left + markerRect.width / 2 - event.clientX,
+    offsetY: markerRect.top + markerRect.height / 2 - event.clientY
+  };
+
+  const markerItem = rugbyWorkspace.byId.get(markerId);
+  if (markerItem?.isRecording && !markerItem.path.length) {
+    markerItem.path.push({ x: markerItem.x, y: markerItem.y });
+  }
+
+  rugbyWorkspace.dom.pitch.classList.add('is-dragging');
+  renderRugbyBoard();
+}
+
 function handleRugbySubmit(event, sheetElement) {
   const rugbyForm = event.target.closest('[data-rugby-form]');
   if (!rugbyForm) {
@@ -582,22 +911,74 @@ function handleRugbySubmit(event, sheetElement) {
 }
 
 function handleRugbyClick(event, sheetElement) {
+  const viewButton = event.target.closest('[data-rugby-view-btn]');
+  if (viewButton && sheetElement.contains(viewButton)) {
+    renderRugbyChildView(sheetElement, viewButton.dataset.rugbyViewBtn);
+    return;
+  }
+
   const removeButton = event.target.closest('[data-action="remove-rugby-move"]');
-  if (!removeButton) {
+  if (removeButton) {
+    event.preventDefault();
+    const moveId = String(removeButton.dataset.moveId ?? '').trim();
+    if (!moveId) {
+      return;
+    }
+
+    const moves = loadRugbyMoves();
+    const filteredMoves = moves.filter((move) => move.id !== moveId);
+    saveRugbyMoves(filteredMoves);
+    clearRugbyError(sheetElement);
+    refreshRugbyMoves(sheetElement);
     return;
   }
 
-  event.preventDefault();
-  const moveId = String(removeButton.dataset.moveId ?? '').trim();
-  if (!moveId) {
+  if (rugbyPanelState.activeView !== 'simulator' || !rugbyWorkspace?.dom || !sheetElement.contains(rugbyWorkspace.dom.pitch)) {
     return;
   }
 
-  const moves = loadRugbyMoves();
-  const filteredMoves = moves.filter((move) => move.id !== moveId);
-  saveRugbyMoves(filteredMoves);
-  clearRugbyError(sheetElement);
-  refreshRugbyMoves(sheetElement);
+  const actionButton = event.target.closest('[data-action]');
+  if (!actionButton) {
+    return;
+  }
+
+  const selectedItem = rugbyWorkspace.byId.get(rugbyWorkspace.selectedId);
+  if (!selectedItem) {
+    return;
+  }
+
+  if (actionButton.dataset.action === 'rugby-start-recording') {
+    selectedItem.isRecording = true;
+    if (!selectedItem.path.length) {
+      selectedItem.path.push({ x: selectedItem.x, y: selectedItem.y });
+    }
+  }
+
+  if (actionButton.dataset.action === 'rugby-stop-recording') {
+    selectedItem.isRecording = false;
+  }
+
+  if (actionButton.dataset.action === 'rugby-clear-selected') {
+    selectedItem.path = [];
+  }
+
+  if (actionButton.dataset.action === 'rugby-clear-all') {
+    rugbyWorkspace.items.forEach((item) => {
+      item.path = [];
+    });
+  }
+
+  if (actionButton.dataset.action === 'rugby-reset-positions') {
+    rugbyWorkspace.items.forEach((item) => {
+      item.x = item.startX;
+      item.y = item.startY;
+      item.isRecording = false;
+    });
+    rugbyWorkspace.drag = null;
+    rugbyWorkspace.dom.pitch.classList.remove('is-dragging');
+  }
+
+  renderRugbyBoard();
 }
 
 function setActiveCategory(buttons, sheetElement, categoryKey) {
@@ -632,6 +1013,11 @@ function initCategoryExplorer() {
 
   sheetElement.addEventListener('input', (event) => {
     handleEngineeringInput(event, sheetElement);
+    handleRugbyInput(event, sheetElement);
+  });
+
+  sheetElement.addEventListener('pointerdown', (event) => {
+    handleRugbyPointerDown(event, sheetElement);
   });
 
   sheetElement.addEventListener('click', (event) => {
