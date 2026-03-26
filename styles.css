@@ -301,10 +301,7 @@ button:disabled {
 /* tile hover/focus behavior */
 .stat-card:hover,
 .stat-card:focus-visible,
-.stat-card:focus-within,
-.asset-card:hover,
-.asset-card:focus-visible,
-.asset-card:focus-within {
+.stat-card:focus-within {
   transform: translateY(-2px);
   border-color: var(--panel-stroke-strong);
   box-shadow:
@@ -314,8 +311,7 @@ button:disabled {
     0 0 32px rgba(86, 255, 150, 0.12);
 }
 
-.stat-card:focus-visible,
-.asset-card:focus-visible {
+.stat-card:focus-visible {
   outline: 2px solid rgba(86, 255, 150, 0.92);
   outline-offset: 2px;
 }
@@ -391,6 +387,16 @@ button:disabled {
 .set-main-btn:focus-visible {
   transform: none;
   background: linear-gradient(180deg, rgba(32, 60, 42, 0.82), rgba(10, 23, 15, 0.96));
+}
+
+.set-main-btn:hover .asset-name,
+.set-main-btn:focus-visible .asset-name {
+  color: #ecfff4;
+}
+
+.set-main-btn:hover .asset-ticker,
+.set-main-btn:focus-visible .asset-ticker {
+  color: #c8f7dc;
 }
 
 .asset-name {
