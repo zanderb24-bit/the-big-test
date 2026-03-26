@@ -1,23 +1,8 @@
 const API_URL =
   'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd,gbp&include_24hr_change=true&include_last_updated_at=true';
 const REFRESH_INTERVAL_MS = 30_000;
-const LOADER_DURATION_MS = 3_500;
-
-const elements = {
-  refreshButton: document.getElementById('refresh-btn'),
-  lastUpdated: document.getElementById('last-updated'),
-  mainChartHeading: document.getElementById('main-chart-heading'),
-  mainStatLabel1: document.getElementById('main-stat-label-1'),
-  mainStatLabel2: document.getElementById('main-stat-label-2'),
-  mainStatLabel3: document.getElementById('main-stat-label-3'),
-  btcPriceUsd: document.getElementById('btc-price-usd'),
-  btcPriceGbp: document.getElementById('btc-price-gbp'),
-  btcChange24h: document.getElementById('btc-change-24h'),
-  ethPriceUsd: document.getElementById('eth-price-usd'),
-  ethChange24h: document.getElementById('eth-change-24h'),
-  assetCards: document.querySelectorAll('.asset-card'),
-  mainAssetButtons: document.querySelectorAll('[data-main-asset]')
-};
+const LOADER_DURATION_MS = 3_300;
+const LOADER_FAILSAFE_MS = 4_800;
 
 const MAIN_ASSETS = {
   bitcoin: {
@@ -44,6 +29,50 @@ const MAIN_ASSETS = {
 
 let activeMainAsset = 'bitcoin';
 let latestMarketData = null;
+let dashboardInitialized = false;
+let refreshIntervalId = null;
+
+const elements = {
+  loaderOverlay: null,
+  loaderRing: null,
+  loaderDot: null,
+  loaderText: null,
+  dashboardRoot: null,
+  refreshButton: null,
+  lastUpdated: null,
+  mainChartHeading: null,
+  mainStatLabel1: null,
+  mainStatLabel2: null,
+  mainStatLabel3: null,
+  btcPriceUsd: null,
+  btcPriceGbp: null,
+  btcChange24h: null,
+  ethPriceUsd: null,
+  ethChange24h: null,
+  assetCards: [],
+  mainAssetButtons: []
+};
+
+function cacheElements() {
+  elements.loaderOverlay = document.getElementById('loader-overlay');
+  elements.loaderRing = document.getElementById('loader-ring');
+  elements.loaderDot = document.getElementById('loader-dot');
+  elements.loaderText = document.getElementById('loader-text');
+  elements.dashboardRoot = document.getElementById('dashboard-root');
+  elements.refreshButton = document.getElementById('refresh-btn');
+  elements.lastUpdated = document.getElementById('last-updated');
+  elements.mainChartHeading = document.getElementById('main-chart-heading');
+  elements.mainStatLabel1 = document.getElementById('main-stat-label-1');
+  elements.mainStatLabel2 = document.getElementById('main-stat-label-2');
+  elements.mainStatLabel3 = document.getElementById('main-stat-label-3');
+  elements.btcPriceUsd = document.getElementById('btc-price-usd');
+  elements.btcPriceGbp = document.getElementById('btc-price-gbp');
+  elements.btcChange24h = document.getElementById('btc-change-24h');
+  elements.ethPriceUsd = document.getElementById('eth-price-usd');
+  elements.ethChange24h = document.getElementById('eth-change-24h');
+  elements.assetCards = Array.from(document.querySelectorAll('.asset-card'));
+  elements.mainAssetButtons = Array.from(document.querySelectorAll('[data-main-asset]'));
+}
 
 function isValidNumber(value) {
   return typeof value === 'number' && Number.isFinite(value);
@@ -83,6 +112,10 @@ function formatDate(unixTimestampSeconds) {
 }
 
 function updateChangeClass(element, value) {
+  if (!element) {
+    return;
+  }
+
   const isPositive = isValidNumber(value) && value >= 0;
   const isNegative = isValidNumber(value) && value < 0;
 
@@ -91,26 +124,12 @@ function updateChangeClass(element, value) {
 }
 
 function setRefreshing(isRefreshing) {
+  if (!elements.refreshButton) {
+    return;
+  }
+
   elements.refreshButton.disabled = isRefreshing;
   elements.refreshButton.textContent = isRefreshing ? 'Refreshing…' : 'Refresh';
-}
-
-function updateView(data) {
-  const btc = data.bitcoin || {};
-  const eth = data.ethereum || {};
-
-  elements.lastUpdated.textContent = formatDate(btc.last_updated_at ?? eth.last_updated_at);
-  latestMarketData = data;
-  renderMainAsset(activeMainAsset, data);
-}
-
-function getMainAssetValues(asset, data) {
-  const btc = data?.bitcoin || {};
-  const eth = data?.ethereum || {};
-
-  elements.lastUpdated.textContent = formatDate(btc.last_updated_at ?? eth.last_updated_at);
-  latestMarketData = data;
-  renderMainAsset(activeMainAsset, data);
 }
 
 function getMainAssetValues(asset, data) {
@@ -128,7 +147,17 @@ function getMainAssetValues(asset, data) {
   return [null, null, null];
 }
 
+function highlightMainAssetCard(asset) {
+  elements.assetCards.forEach((card) => {
+    card.classList.toggle('selected', card.dataset.mainAsset === asset);
+  });
+}
+
 function renderMainAsset(asset, data) {
+  if (!elements.mainChartHeading || !elements.mainStatLabel1 || !elements.mainStatLabel2 || !elements.mainStatLabel3) {
+    return;
+  }
+
   const config = MAIN_ASSETS[asset] || MAIN_ASSETS.bitcoin;
   const [value1, value2, change] = getMainAssetValues(asset, data);
 
@@ -137,19 +166,42 @@ function renderMainAsset(asset, data) {
   elements.mainStatLabel2.textContent = config.labels[1];
   elements.mainStatLabel3.textContent = config.labels[2];
 
-  elements.btcPriceUsd.textContent = formatCurrency(value1, 'USD');
-  elements.btcPriceGbp.textContent = formatCurrency(value2, 'GBP');
-  elements.btcChange24h.textContent = formatPercent(change);
-  updateChangeClass(elements.btcChange24h, change);
+  if (elements.btcPriceUsd) {
+    elements.btcPriceUsd.textContent = formatCurrency(value1, 'USD');
+  }
+
+  if (elements.btcPriceGbp) {
+    elements.btcPriceGbp.textContent = formatCurrency(value2, 'GBP');
+  }
+
+  if (elements.btcChange24h) {
+    elements.btcChange24h.textContent = formatPercent(change);
+    updateChangeClass(elements.btcChange24h, change);
+  }
 
   buildTradingViewWidget('tradingview_btc_chart', config.chartSymbol, true);
   highlightMainAssetCard(asset);
 }
 
-function highlightMainAssetCard(asset) {
-  elements.assetCards.forEach((card) => {
-    card.classList.toggle('selected', card.dataset.mainAsset === asset);
-  });
+function updateView(data) {
+  const btc = data?.bitcoin || {};
+  const eth = data?.ethereum || {};
+
+  if (elements.lastUpdated) {
+    elements.lastUpdated.textContent = formatDate(btc.last_updated_at ?? eth.last_updated_at);
+  }
+
+  if (elements.ethPriceUsd) {
+    elements.ethPriceUsd.textContent = formatCurrency(eth.usd, 'USD');
+  }
+
+  if (elements.ethChange24h) {
+    elements.ethChange24h.textContent = formatPercent(eth.usd_24h_change);
+    updateChangeClass(elements.ethChange24h, eth.usd_24h_change);
+  }
+
+  latestMarketData = data;
+  renderMainAsset(activeMainAsset, data);
 }
 
 async function fetchMarketData() {
@@ -174,7 +226,6 @@ async function fetchMarketData() {
 
     updateView(data);
   } catch (error) {
-    // Silent failure by design: keep existing values on screen.
     console.warn('Live market refresh failed; preserving previous values.', error);
   } finally {
     setRefreshing(false);
@@ -220,7 +271,7 @@ function buildTradingViewWidget(containerId, symbol, forceRebuild = false) {
 
 function initTradingViewWidgets() {
   const createWidgets = () => {
-    buildTradingViewWidget('tradingview_btc_chart', 'BITSTAMP:BTCUSD');
+    buildTradingViewWidget('tradingview_btc_chart', MAIN_ASSETS[activeMainAsset].chartSymbol);
   };
 
   const script = document.querySelector('script[src="https://s3.tradingview.com/tv.js"]');
@@ -241,12 +292,119 @@ function setMainAsset(asset) {
   renderMainAsset(asset, latestMarketData);
 }
 
-elements.mainAssetButtons.forEach((button) => {
-  button.addEventListener('click', () => {
-    setMainAsset(button.dataset.mainAsset);
+function bindEvents() {
+  elements.mainAssetButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      setMainAsset(button.dataset.mainAsset);
+    });
   });
-});
 
-elements.refreshButton.addEventListener('click', fetchMarketData);
+  if (elements.refreshButton) {
+    elements.refreshButton.addEventListener('click', fetchMarketData);
+  }
+}
 
-initDashboard();
+function runLoadingCinematic() {
+  return new Promise((resolve) => {
+    const ring = elements.loaderRing;
+    const text = elements.loaderText;
+    const dot = elements.loaderDot;
+
+    if (!ring || !text || !dot) {
+      resolve();
+      return;
+    }
+
+    const startTime = performance.now();
+    let finished = false;
+
+    const finish = () => {
+      if (finished) {
+        return;
+      }
+
+      finished = true;
+      ring.style.setProperty('--progress-angle', '360deg');
+      text.textContent = 'Ready';
+      dot.classList.add('is-complete');
+      resolve();
+    };
+
+    const failsafeTimer = window.setTimeout(finish, LOADER_FAILSAFE_MS);
+
+    const tick = (now) => {
+      if (finished) {
+        return;
+      }
+
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / LOADER_DURATION_MS, 1);
+      const angle = `${Math.round(progress * 360)}deg`;
+
+      ring.style.setProperty('--progress-angle', angle);
+
+      if (progress < 0.33) {
+        text.textContent = 'Booting dashboard…';
+      } else if (progress < 0.66) {
+        text.textContent = 'Loading market modules…';
+      } else if (progress < 1) {
+        text.textContent = 'Syncing live widgets…';
+      } else {
+        window.clearTimeout(failsafeTimer);
+        finish();
+        return;
+      }
+
+      window.requestAnimationFrame(tick);
+    };
+
+    window.requestAnimationFrame(tick);
+  });
+}
+
+function revealDashboard() {
+  if (elements.dashboardRoot) {
+    elements.dashboardRoot.classList.remove('dashboard-hidden');
+    elements.dashboardRoot.classList.add('dashboard-visible');
+  }
+
+  if (elements.loaderOverlay) {
+    elements.loaderOverlay.classList.add('is-hidden');
+  }
+}
+
+async function initDashboard() {
+  if (dashboardInitialized) {
+    return;
+  }
+
+  dashboardInitialized = true;
+
+  try {
+    await runLoadingCinematic();
+  } catch (error) {
+    console.warn('Loading cinematic failed; continuing startup.', error);
+  } finally {
+    revealDashboard();
+  }
+
+  void fetchMarketData();
+
+  if (!refreshIntervalId) {
+    refreshIntervalId = window.setInterval(fetchMarketData, REFRESH_INTERVAL_MS);
+  }
+
+  initTradingViewWidgets();
+}
+
+function startApp() {
+  cacheElements();
+  bindEvents();
+  void initDashboard();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', startApp, { once: true });
+} else {
+  startApp();
+}

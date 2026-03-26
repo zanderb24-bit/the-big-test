@@ -136,13 +136,16 @@ body::after {
 
 .dashboard-hidden {
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
+  transition: opacity 320ms ease, visibility 320ms ease;
 }
 
 .dashboard-visible {
   opacity: 1;
+  visibility: visible;
   pointer-events: auto;
-  transition: opacity 320ms ease;
+  transition: opacity 320ms ease, visibility 320ms ease;
 }
 
 .container {
