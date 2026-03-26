@@ -7,9 +7,9 @@ const CATEGORY_CONTENT = {
   },
   rugby: {
     title: 'Rugby',
-    description: 'Team tracking with fixtures, training structure, and tactical analysis.',
-    bullets: ['Match notes', 'Training focus', 'Team updates'],
-    tagLine: 'Focus: conditioning • set pieces • review'
+    description: 'Preset moves library with quick access to video and reference links.',
+    bullets: ['Moves library', 'Video references', 'Saved locally'],
+    tagLine: 'Focus: prep • replay • execution'
   },
   'counter-strike-2': {
     title: 'Counter-Strike 2',
@@ -37,6 +37,8 @@ const ENGINEERING_TOPICS = {
   structures: 'Structures',
   'mechanical-systems': 'Mechanical Systems'
 };
+
+const RUGBY_MOVES_STORAGE_KEY = 'rugby-preset-moves';
 
 function getEngineeringStorageKey(topicKey, field) {
   return `engineering-${topicKey}-${field}`;
@@ -69,6 +71,206 @@ function normalizeUrl(urlInput) {
   } catch {
     return null;
   }
+}
+
+function getSourceLabel(url) {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host.replace(/^www\./, '') || 'Reference';
+  } catch {
+    return 'Reference';
+  }
+}
+
+function extractYouTubeVideoId(urlInput) {
+  const safeUrl = normalizeUrl(urlInput);
+  if (!safeUrl) {
+    return null;
+  }
+
+  try {
+    const parsedUrl = new URL(safeUrl);
+    const hostname = parsedUrl.hostname.toLowerCase().replace(/^www\./, '');
+
+    if (hostname === 'youtu.be') {
+      const shortId = parsedUrl.pathname.split('/').filter(Boolean)[0];
+      return shortId ? shortId.slice(0, 50) : null;
+    }
+
+    if (hostname === 'youtube.com' || hostname === 'm.youtube.com') {
+      if (parsedUrl.pathname === '/watch') {
+        const watchId = parsedUrl.searchParams.get('v');
+        return watchId ? watchId.slice(0, 50) : null;
+      }
+
+      const pathParts = parsedUrl.pathname.split('/').filter(Boolean);
+      if ((pathParts[0] === 'embed' || pathParts[0] === 'shorts') && pathParts[1]) {
+        return pathParts[1].slice(0, 50);
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function getRugbyMoveMetadata(urlInput) {
+  const safeUrl = normalizeUrl(urlInput);
+  if (!safeUrl) {
+    return null;
+  }
+
+  const source = getSourceLabel(safeUrl);
+  const youtubeId = extractYouTubeVideoId(safeUrl);
+  const thumbnailUrl = youtubeId ? `https://img.youtube.com/vi/${encodeURIComponent(youtubeId)}/hqdefault.jpg` : '';
+
+  return {
+    url: safeUrl,
+    source,
+    thumbnailUrl
+  };
+}
+
+function getMoveId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+
+  return `move-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function loadRugbyMoves() {
+  const rawMoves = localStorage.getItem(RUGBY_MOVES_STORAGE_KEY);
+
+  if (!rawMoves) {
+    return [];
+  }
+
+  try {
+    const parsedMoves = JSON.parse(rawMoves);
+    if (!Array.isArray(parsedMoves)) {
+      return [];
+    }
+
+    return parsedMoves
+      .map((move) => {
+        if (!move || typeof move !== 'object') {
+          return null;
+        }
+
+        const metadata = getRugbyMoveMetadata(move.url);
+        if (!metadata) {
+          return null;
+        }
+
+        const title = String(move.title ?? '').trim();
+        if (!title) {
+          return null;
+        }
+
+        return {
+          id: String(move.id ?? getMoveId()),
+          title,
+          subtitle: String(move.subtitle ?? '').trim(),
+          url: metadata.url,
+          source: String(move.source ?? metadata.source).trim() || metadata.source,
+          thumbnailUrl: String(move.thumbnailUrl ?? metadata.thumbnailUrl).trim() || metadata.thumbnailUrl
+        };
+      })
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function saveRugbyMoves(moves) {
+  const safeMoves = Array.isArray(moves) ? moves : [];
+  localStorage.setItem(RUGBY_MOVES_STORAGE_KEY, JSON.stringify(safeMoves));
+}
+
+function getRugbyMovesMarkup() {
+  const moves = loadRugbyMoves();
+
+  if (!moves.length) {
+    return `
+      <div class="rugby-empty-state">
+        <p>No preset moves saved yet.</p>
+        <p>Add your first move above with a YouTube or reference URL.</p>
+      </div>
+    `;
+  }
+
+  const cards = moves
+    .map((move) => {
+      const safeThumb = sanitizeText(move.thumbnailUrl);
+      const safeTitle = sanitizeText(move.title);
+      const safeSubtitle = sanitizeText(move.subtitle);
+      const safeUrl = sanitizeText(move.url);
+      const safeSource = sanitizeText(move.source || 'Reference');
+      const safeId = sanitizeText(move.id);
+
+      const thumbnailMarkup = move.thumbnailUrl
+        ? `<img src="${safeThumb}" alt="${safeTitle} video thumbnail" loading="lazy" referrerpolicy="no-referrer" />`
+        : `
+          <div class="rugby-thumb-fallback" aria-hidden="true">
+            <span class="rugby-thumb-chip">Reference</span>
+            <span class="rugby-thumb-source">${safeSource}</span>
+          </div>
+        `;
+
+      return `
+        <article class="rugby-move-card">
+          <button class="rugby-remove-btn" type="button" data-action="remove-rugby-move" data-move-id="${safeId}" aria-label="Remove ${safeTitle}">Remove</button>
+          <a class="rugby-move-open" href="${safeUrl}" target="_blank" rel="noopener noreferrer">
+            <div class="rugby-thumb-area">
+              ${thumbnailMarkup}
+            </div>
+            <div class="rugby-card-body">
+              <h4>${safeTitle}</h4>
+              ${safeSubtitle ? `<p class="rugby-move-subtitle">${safeSubtitle}</p>` : '<p class="rugby-move-subtitle">&nbsp;</p>'}
+              <p class="rugby-source">${safeSource}</p>
+            </div>
+          </a>
+        </article>
+      `;
+    })
+    .join('');
+
+  return `<div class="rugby-moves-grid">${cards}</div>`;
+}
+
+function renderRugbySheet(sheetElement) {
+  sheetElement.innerHTML = `
+    <p class="sheet-tag">Rugby Workspace • Preset Moves Library</p>
+    <h3>Rugby</h3>
+    <p class="sheet-description">Save reusable rugby move references and open them quickly from visual cards.</p>
+
+    <section class="rugby-workspace">
+      <form class="rugby-form" data-rugby-form>
+        <div class="rugby-form-grid">
+          <label class="engineering-label" for="rugby-move-title">Move title</label>
+          <input id="rugby-move-title" type="text" maxlength="120" data-rugby-title placeholder="e.g. Crash Ball to Blindside" required />
+
+          <label class="engineering-label" for="rugby-move-subtitle">Tag / short note (optional)</label>
+          <input id="rugby-move-subtitle" type="text" maxlength="120" data-rugby-subtitle placeholder="e.g. Phase play • Forward pod" />
+
+          <label class="engineering-label" for="rugby-move-url">Video/reference URL</label>
+          <input id="rugby-move-url" type="url" data-rugby-url placeholder="https://youtube.com/watch?v=..." required />
+        </div>
+
+        <div class="rugby-form-actions">
+          <button type="submit">Save Move</button>
+          <p class="engineering-helper rugby-form-helper">Supports YouTube and any valid http(s) reference link.</p>
+        </div>
+        <p class="engineering-helper engineering-error" data-rugby-error aria-live="polite"></p>
+      </form>
+
+      <section class="rugby-library" data-rugby-library aria-live="polite">
+        ${getRugbyMovesMarkup()}
+      </section>
+    </section>
+  `;
 }
 
 function loadTopicNotes(topicKey) {
@@ -207,6 +409,11 @@ function renderCategorySheet(sheetElement, categoryKey) {
     return;
   }
 
+  if (categoryKey === 'rugby') {
+    renderRugbySheet(sheetElement);
+    return;
+  }
+
   renderBasicCategorySheet(sheetElement, content);
 }
 
@@ -219,6 +426,15 @@ function refreshTopicLinks(sheetElement, topicKey) {
   linksContainer.innerHTML = getTopicLinksMarkup(topicKey);
 }
 
+function refreshRugbyMoves(sheetElement) {
+  const libraryElement = sheetElement.querySelector('[data-rugby-library]');
+  if (!libraryElement) {
+    return;
+  }
+
+  libraryElement.innerHTML = getRugbyMovesMarkup();
+}
+
 function clearTopicError(sheetElement, topicKey) {
   const errorElement = sheetElement.querySelector(`[data-topic-error="${topicKey}"]`);
   if (errorElement) {
@@ -228,6 +444,20 @@ function clearTopicError(sheetElement, topicKey) {
 
 function showTopicError(sheetElement, topicKey, message) {
   const errorElement = sheetElement.querySelector(`[data-topic-error="${topicKey}"]`);
+  if (errorElement) {
+    errorElement.textContent = message;
+  }
+}
+
+function clearRugbyError(sheetElement) {
+  const errorElement = sheetElement.querySelector('[data-rugby-error]');
+  if (errorElement) {
+    errorElement.textContent = '';
+  }
+}
+
+function showRugbyError(sheetElement, message) {
+  const errorElement = sheetElement.querySelector('[data-rugby-error]');
   if (errorElement) {
     errorElement.textContent = message;
   }
@@ -308,6 +538,68 @@ function handleEngineeringClick(event, sheetElement) {
   }
 }
 
+function handleRugbySubmit(event, sheetElement) {
+  const rugbyForm = event.target.closest('[data-rugby-form]');
+  if (!rugbyForm) {
+    return;
+  }
+
+  event.preventDefault();
+
+  const titleInput = rugbyForm.querySelector('[data-rugby-title]');
+  const subtitleInput = rugbyForm.querySelector('[data-rugby-subtitle]');
+  const urlInput = rugbyForm.querySelector('[data-rugby-url]');
+
+  const title = String(titleInput?.value ?? '').trim();
+  const subtitle = String(subtitleInput?.value ?? '').trim();
+  const urlValue = String(urlInput?.value ?? '').trim();
+
+  if (!title) {
+    showRugbyError(sheetElement, 'Please add a move title.');
+    return;
+  }
+
+  const metadata = getRugbyMoveMetadata(urlValue);
+  if (!metadata) {
+    showRugbyError(sheetElement, 'Please enter a valid http(s) URL.');
+    return;
+  }
+
+  const moves = loadRugbyMoves();
+  moves.unshift({
+    id: getMoveId(),
+    title,
+    subtitle,
+    url: metadata.url,
+    source: metadata.source,
+    thumbnailUrl: metadata.thumbnailUrl
+  });
+
+  saveRugbyMoves(moves);
+  clearRugbyError(sheetElement);
+  rugbyForm.reset();
+  refreshRugbyMoves(sheetElement);
+}
+
+function handleRugbyClick(event, sheetElement) {
+  const removeButton = event.target.closest('[data-action="remove-rugby-move"]');
+  if (!removeButton) {
+    return;
+  }
+
+  event.preventDefault();
+  const moveId = String(removeButton.dataset.moveId ?? '').trim();
+  if (!moveId) {
+    return;
+  }
+
+  const moves = loadRugbyMoves();
+  const filteredMoves = moves.filter((move) => move.id !== moveId);
+  saveRugbyMoves(filteredMoves);
+  clearRugbyError(sheetElement);
+  refreshRugbyMoves(sheetElement);
+}
+
 function setActiveCategory(buttons, sheetElement, categoryKey) {
   let hasMatch = false;
 
@@ -344,6 +636,11 @@ function initCategoryExplorer() {
 
   sheetElement.addEventListener('click', (event) => {
     handleEngineeringClick(event, sheetElement);
+    handleRugbyClick(event, sheetElement);
+  });
+
+  sheetElement.addEventListener('submit', (event) => {
+    handleRugbySubmit(event, sheetElement);
   });
 
   setActiveCategory(categoryButtons, sheetElement, categoryButtons[0].dataset.category);
