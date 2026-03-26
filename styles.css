@@ -484,6 +484,181 @@ h1 {
   font-size: 0.86rem;
 }
 
+.rugby-workspace {
+  display: grid;
+  gap: 1rem;
+}
+
+.rugby-form {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.9rem;
+  border-radius: 0.8rem;
+  border: 1px solid rgba(86, 255, 150, 0.28);
+  background: linear-gradient(180deg, rgba(20, 44, 30, 0.44), rgba(6, 16, 11, 0.78));
+}
+
+.rugby-form-grid {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.rugby-form-grid input {
+  width: 100%;
+  border-radius: 0.55rem;
+  border: 1px solid rgba(86, 255, 150, 0.34);
+  background: rgba(1, 10, 6, 0.78);
+  color: #e8ffee;
+  padding: 0.58rem 0.65rem;
+  font: inherit;
+}
+
+.rugby-form-grid input:focus-visible {
+  outline: 2px solid rgba(86, 255, 150, 0.78);
+  outline-offset: 1px;
+}
+
+.rugby-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.rugby-form-helper {
+  font-size: 0.74rem;
+}
+
+.rugby-moves-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.rugby-empty-state {
+  border: 1px dashed rgba(86, 255, 150, 0.34);
+  border-radius: 0.8rem;
+  padding: 1rem;
+  color: var(--muted);
+  background: rgba(2, 12, 8, 0.6);
+  display: grid;
+  gap: 0.35rem;
+}
+
+.rugby-move-card {
+  position: relative;
+  border: 1px solid rgba(86, 255, 150, 0.28);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(10, 28, 19, 0.76), rgba(4, 14, 9, 0.92));
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
+}
+
+.rugby-move-open {
+  display: grid;
+  color: inherit;
+  text-decoration: none;
+  height: 100%;
+}
+
+.rugby-move-open:hover,
+.rugby-move-open:focus-visible {
+  box-shadow:
+    inset 0 0 0 1px rgba(86, 255, 150, 0.56),
+    0 10px 22px rgba(0, 0, 0, 0.35);
+}
+
+.rugby-thumb-area {
+  aspect-ratio: 16 / 9;
+  background: linear-gradient(140deg, rgba(25, 60, 43, 0.9), rgba(6, 18, 12, 0.9));
+  border-bottom: 1px solid rgba(86, 255, 150, 0.24);
+  overflow: hidden;
+}
+
+.rugby-thumb-area img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.rugby-thumb-fallback {
+  height: 100%;
+  padding: 0.7rem;
+  display: grid;
+  align-content: end;
+  gap: 0.35rem;
+  background:
+    linear-gradient(165deg, rgba(39, 84, 60, 0.65), rgba(8, 23, 15, 0.85)),
+    repeating-linear-gradient(120deg, rgba(86, 255, 150, 0.08) 0 8px, rgba(0, 0, 0, 0) 8px 16px);
+}
+
+.rugby-thumb-chip {
+  width: fit-content;
+  border: 1px solid rgba(86, 255, 150, 0.52);
+  background: rgba(6, 20, 13, 0.9);
+  color: #d8ffe7;
+  font-size: 0.67rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.23rem 0.4rem;
+  border-radius: 0.35rem;
+}
+
+.rugby-thumb-source {
+  color: #e8ffee;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.4);
+}
+
+.rugby-card-body {
+  padding: 0.65rem 0.7rem 0.75rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.rugby-card-body h4 {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #edfff4;
+  line-height: 1.3;
+}
+
+.rugby-move-subtitle {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #c6e8d2;
+}
+
+.rugby-source {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #95c3a7;
+}
+
+.rugby-remove-btn {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  z-index: 2;
+  padding: 0.28rem 0.45rem;
+  border-radius: 0.45rem;
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+  border-color: rgba(255, 107, 125, 0.65);
+  color: #ffd7dd;
+  background: linear-gradient(180deg, rgba(68, 20, 29, 0.95), rgba(34, 8, 14, 0.95));
+}
+
+.rugby-remove-btn:hover,
+.rugby-remove-btn:focus-visible {
+  border-color: #ff8c9a;
+  color: #ffeef1;
+}
+
 button {
   border: 1px solid var(--panel-stroke-strong);
   background: linear-gradient(180deg, rgba(23, 45, 33, 0.82), rgba(8, 20, 14, 0.92));
@@ -759,6 +934,10 @@ button:disabled {
 }
 
 @media (max-width: 860px) {
+  .rugby-moves-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .engineering-topics-grid {
     grid-template-columns: 1fr;
   }
@@ -809,6 +988,10 @@ button:disabled {
   }
 
   .category-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rugby-moves-grid {
     grid-template-columns: 1fr;
   }
 }
