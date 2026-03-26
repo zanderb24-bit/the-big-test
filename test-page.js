@@ -7,8 +7,8 @@ const CATEGORY_CONTENT = {
   },
   rugby: {
     title: 'Rugby',
-    description: 'Interactive move-builder for position-by-position planning.',
-    bullets: ['Tactics board', 'Player and ball trails', 'Layered move design'],
+    description: 'Preset move library and simulator board for position-by-position planning.',
+    bullets: ['Preset moves', 'Video thumbnails', 'Player and ball trails'],
     tagLine: 'Focus: design • timing • execution'
   },
   'counter-strike-2': {
@@ -57,6 +57,9 @@ const RUGBY_POSITIONS = [
 ];
 
 const RUGBY_BALL = { id: 'ball', label: 'Ball', name: 'Ball', startX: 50, startY: 48 };
+const RUGBY_STORAGE_KEY = 'rugby-preset-moves-v1';
+
+const rugbyPanelState = { activeView: 'moves' };
 let rugbyWorkspace = null;
 
 function getEngineeringStorageKey(topicKey, field) {
@@ -74,7 +77,6 @@ function sanitizeText(value) {
 
 function normalizeUrl(urlInput) {
   const rawValue = String(urlInput ?? '').trim();
-
   if (!rawValue) {
     return null;
   }
@@ -112,19 +114,17 @@ function extractYouTubeVideoId(urlInput) {
     const hostname = parsedUrl.hostname.toLowerCase().replace(/^www\./, '');
 
     if (hostname === 'youtu.be') {
-      const shortId = parsedUrl.pathname.split('/').filter(Boolean)[0];
-      return shortId ? shortId.slice(0, 50) : null;
+      return parsedUrl.pathname.split('/').filter(Boolean)[0] ?? null;
     }
 
     if (hostname === 'youtube.com' || hostname === 'm.youtube.com') {
       if (parsedUrl.pathname === '/watch') {
-        const watchId = parsedUrl.searchParams.get('v');
-        return watchId ? watchId.slice(0, 50) : null;
+        return parsedUrl.searchParams.get('v');
       }
 
       const pathParts = parsedUrl.pathname.split('/').filter(Boolean);
       if ((pathParts[0] === 'embed' || pathParts[0] === 'shorts') && pathParts[1]) {
-        return pathParts[1].slice(0, 50);
+        return pathParts[1];
       }
     }
 
@@ -134,16 +134,99 @@ function extractYouTubeVideoId(urlInput) {
   }
 }
 
-function renderRugbySheet(sheetElement) {
+function loadRugbyMoves() {
+  const rawMoves = localStorage.getItem(RUGBY_STORAGE_KEY);
+  if (!rawMoves) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(rawMoves);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.filter((move) => move && typeof move === 'object' && String(move.id ?? '').trim() && String(move.title ?? '').trim());
+  } catch {
+    return [];
+  }
+}
+
+function saveRugbyMoves(moves) {
+  const safeMoves = Array.isArray(moves) ? moves : [];
+  localStorage.setItem(RUGBY_STORAGE_KEY, JSON.stringify(safeMoves));
+}
+
+function getRugbyMovesMarkup() {
+  const moves = loadRugbyMoves();
+  if (!moves.length) {
+    return '<li class="engineering-empty-state">No preset moves yet. Save one from the form above.</li>';
+  }
+
+  return moves
+    .map((move) => {
+      const safeUrl = normalizeUrl(move.videoUrl);
+      const sourceLabel = safeUrl ? getSourceLabel(safeUrl) : 'Manual';
+      const thumbnailUrl = move.thumbnailUrl || '';
+      const safeTitle = sanitizeText(move.title);
+      const safeDescription = sanitizeText(move.description || 'No notes added.');
+
+      return `
+        <li class="rugby-move-card">
+          <div class="rugby-move-thumb-wrap">
+            ${thumbnailUrl
+              ? `<img class="rugby-move-thumb" src="${sanitizeText(thumbnailUrl)}" alt="${safeTitle} thumbnail" loading="lazy" />`
+              : '<div class="rugby-move-thumb rugby-move-thumb-fallback" aria-hidden="true">No Preview</div>'}
+          </div>
+          <div class="rugby-move-meta">
+            <h5>${safeTitle}</h5>
+            <p>${safeDescription}</p>
+            <div class="rugby-move-meta-footer">
+              <span>${sanitizeText(sourceLabel)}</span>
+              ${safeUrl ? `<a href="${sanitizeText(safeUrl)}" target="_blank" rel="noopener noreferrer">Open Video</a>` : '<span>No URL</span>'}
+            </div>
+          </div>
+          <button type="button" class="link-remove-btn" data-action="rugby-delete-move" data-rugby-move-id="${sanitizeText(move.id)}">Remove</button>
+        </li>
+      `;
+    })
+    .join('');
+}
+
+function getRugbyMovesPanelMarkup() {
+  return `
+    <section class="rugby-moves-panel" aria-label="Rugby preset moves">
+      <div class="engineering-topic-card rugby-move-form-card">
+        <h4>Preset Moves Library</h4>
+        <label class="engineering-label" for="rugby-move-title">Move Name</label>
+        <input id="rugby-move-title" type="text" class="engineering-link-label" data-rugby-move-title placeholder="e.g. Strike Left - Phase 2" />
+
+        <label class="engineering-label" for="rugby-move-video">Video URL</label>
+        <input id="rugby-move-video" type="url" class="engineering-link-url" data-rugby-move-video placeholder="https://youtube.com/watch?v=..." />
+
+        <label class="engineering-label" for="rugby-move-notes">Notes</label>
+        <textarea id="rugby-move-notes" class="engineering-notes" data-rugby-move-notes placeholder="Optional quick notes about timing and support lines."></textarea>
+
+        <button type="button" data-action="rugby-save-move">Save Preset Move</button>
+        <p class="engineering-helper engineering-error" data-rugby-error aria-live="polite"></p>
+      </div>
+
+      <section class="engineering-topic-card rugby-library-card">
+        <h4>Saved Preset Moves</h4>
+        <ul class="rugby-move-list" data-rugby-library>
+          ${getRugbyMovesMarkup()}
+        </ul>
+      </section>
+    </section>
+  `;
+}
+
+function getRugbySimulatorPanelMarkup() {
   const selectOptions = [...RUGBY_POSITIONS, RUGBY_BALL]
     .map((item) => `<option value="${item.id}">${item.id === 'ball' ? 'Ball' : `${item.id} • ${item.name}`}</option>`)
     .join('');
 
-  sheetElement.innerHTML = `
-    <p class="sheet-tag">Rugby Workspace • Move Builder</p>
-    <h3>Rugby</h3>
-    <p class="sheet-description">Build multi-phase rugby moves by selecting players or the ball and recording each trail independently.</p>
-
+  return `
     <section class="rugby-workspace">
       <aside class="rugby-controls">
         <div class="rugby-control-block">
@@ -164,7 +247,8 @@ function renderRugbySheet(sheetElement) {
         <div class="rugby-status" aria-live="polite">
           <p><span>Selected:</span> <strong data-rugby-selected-name>9 • Scrum Half</strong></p>
           <p><span>Recording:</span> <strong data-rugby-recording-state>OFF</strong></p>
-          <p><span>Tip:</span> click marker to select, then drag on pitch.</p>
+          <p><span>View:</span> <strong>Move Simulator</strong></p>
+          <p><span>Tip:</span> Select marker, click start recording, then drag on pitch.</p>
         </div>
       </aside>
 
@@ -184,198 +268,25 @@ function renderRugbySheet(sheetElement) {
       </section>
     </section>
   `;
-
-  initRugbyWorkspace(sheetElement);
-}
-
-function createRugbyItems() {
-  return [...RUGBY_POSITIONS, RUGBY_BALL].map((item) => ({
-    ...item,
-    x: item.startX,
-    y: item.startY,
-    path: [],
-    isRecording: false
-  }));
-}
-
-function destroyRugbyWorkspace() {
-  if (!rugbyWorkspace) {
-    return;
-  }
-
-  if (typeof rugbyWorkspace.cleanup === 'function') {
-    rugbyWorkspace.cleanup();
-  }
-
-  rugbyWorkspace = null;
-}
-
-function initRugbyWorkspace(sheetElement) {
-  destroyRugbyWorkspace();
-
-  const pitch = sheetElement.querySelector('[data-rugby-pitch]');
-  const markersLayer = sheetElement.querySelector('[data-rugby-markers]');
-  const trailsLayer = sheetElement.querySelector('[data-rugby-trails]');
-  const selector = sheetElement.querySelector('[data-rugby-selector]');
-  const selectedName = sheetElement.querySelector('[data-rugby-selected-name]');
-  const recordingState = sheetElement.querySelector('[data-rugby-recording-state]');
-
-  if (!pitch || !markersLayer || !trailsLayer || !selector || !selectedName || !recordingState) {
-    return;
-  }
-
-  const items = createRugbyItems();
-  const byId = new Map(items.map((item) => [item.id, item]));
-
-  rugbyWorkspace = {
-    selectedId: '9',
-    drag: null,
-    items,
-    byId,
-    pitch,
-    markersLayer,
-    trailsLayer,
-    selector,
-    selectedName,
-    recordingState
-  };
-
-  const onPointerMove = (event) => {
-    if (!rugbyWorkspace?.drag) {
-      return;
-    }
-
-    const { id, offsetX, offsetY } = rugbyWorkspace.drag;
-    const item = rugbyWorkspace.byId.get(id);
-    if (!item) {
-      return;
-    }
-
-    const pitchRect = rugbyWorkspace.pitch.getBoundingClientRect();
-    const nextX = Math.min(99, Math.max(1, ((event.clientX - pitchRect.left - offsetX) / pitchRect.width) * 100));
-    const nextY = Math.min(99, Math.max(1, ((event.clientY - pitchRect.top - offsetY) / pitchRect.height) * 100));
-
-    item.x = nextX;
-    item.y = nextY;
-
-    if (item.isRecording) {
-      const lastPoint = item.path[item.path.length - 1];
-      const hasMoved = !lastPoint || Math.hypot(lastPoint.x - nextX, lastPoint.y - nextY) > 0.45;
-      if (hasMoved) {
-        item.path.push({ x: nextX, y: nextY });
-      }
-    }
-
-    renderRugbyBoard();
-  };
-
-  const onPointerUp = () => {
-    if (rugbyWorkspace?.drag) {
-      rugbyWorkspace.drag = null;
-      rugbyWorkspace.pitch.classList.remove('is-dragging');
-    }
-  };
-
-  window.addEventListener('pointermove', onPointerMove);
-  window.addEventListener('pointerup', onPointerUp);
-
-  rugbyWorkspace.cleanup = () => {
-    window.removeEventListener('pointermove', onPointerMove);
-    window.removeEventListener('pointerup', onPointerUp);
-  };
-
-  renderRugbyBoard();
-}
-
-function renderRugbyBoard() {
-  if (!rugbyWorkspace) {
-    return;
-  }
-
-  const { items, selectedId, markersLayer, trailsLayer, selector, selectedName, recordingState } = rugbyWorkspace;
-
-  markersLayer.innerHTML = items
-    .map((item) => {
-      const isSelected = item.id === selectedId;
-      const markerClass = ['rugby-marker', item.id === 'ball' ? 'is-ball' : 'is-player', isSelected ? 'is-selected' : '']
-        .filter(Boolean)
-        .join(' ');
-      const markerLabel = item.id === 'ball' ? 'B' : item.label;
-      const titleText = `${item.id === 'ball' ? 'Ball' : `${item.id} • ${item.name}`}${item.isRecording ? ' (Recording)' : ''}`;
-
-      return `
-        <button
-          type="button"
-          class="${markerClass}"
-          style="left:${item.x}%; top:${item.y}%;"
-          data-rugby-marker="${item.id}"
-          title="${sanitizeText(titleText)}"
-          aria-label="${sanitizeText(titleText)}">
-          ${sanitizeText(markerLabel)}
-        </button>
-      `;
-    })
-    .join('');
-
-  trailsLayer.innerHTML = items
-    .map((item) => {
-      if (!item.path.length) {
-        return '';
-      }
-
-      const points = item.path.map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ');
-      return `<polyline class="rugby-trail ${item.id === selectedId ? 'is-selected' : ''}" data-trail-id="${item.id}" points="${points}" />`;
-    })
-    .join('');
-
-  const selectedItem = rugbyWorkspace.byId.get(selectedId);
-  selector.value = selectedId;
-  selectedName.textContent = selectedItem ? `${selectedItem.id === 'ball' ? 'Ball' : `${selectedItem.id} • ${selectedItem.name}`}` : '—';
-  recordingState.textContent = selectedItem?.isRecording ? 'ON' : 'OFF';
-  recordingState.classList.toggle('is-on', Boolean(selectedItem?.isRecording));
 }
 
 function renderRugbySheet(sheetElement) {
   sheetElement.innerHTML = `
     <p class="sheet-tag">Rugby Workspace • Preset Moves + Simulator</p>
     <h3>Rugby</h3>
-    <p class="sheet-description">Keep your preset move library and switch to the Move Simulator board for drag-and-record planning.</p>
+    <p class="sheet-description">Use Preset Moves for saved clips and notes, or switch to Move Simulator for interactive trail building.</p>
 
     <section class="rugby-parent-area">
       <div class="rugby-child-nav" role="tablist" aria-label="Rugby child views">
-        <button type="button" class="rugby-child-tab ${rugbyPanelState.activeView === 'moves' ? 'is-active' : ''}" data-rugby-view-btn="moves" role="tab" aria-selected="${rugbyPanelState.activeView === 'moves'}">Preset Moves</button>
-        <button type="button" class="rugby-child-tab ${rugbyPanelState.activeView === 'simulator' ? 'is-active' : ''}" data-rugby-view-btn="simulator" role="tab" aria-selected="${rugbyPanelState.activeView === 'simulator'}">Move Simulator</button>
+        <button type="button" class="rugby-child-tab ${rugbyPanelState.activeView === 'moves' ? 'is-active' : ''}" data-action="rugby-switch-view" data-rugby-view="moves" role="tab" aria-selected="${rugbyPanelState.activeView === 'moves'}">Preset Moves</button>
+        <button type="button" class="rugby-child-tab ${rugbyPanelState.activeView === 'simulator' ? 'is-active' : ''}" data-action="rugby-switch-view" data-rugby-view="simulator" role="tab" aria-selected="${rugbyPanelState.activeView === 'simulator'}">Move Simulator</button>
       </div>
 
-      <div class="rugby-child-panel" data-rugby-child-content></div>
+      <div class="rugby-child-content" data-rugby-child-content></div>
     </section>
   `;
 
   renderRugbyChildView(sheetElement, rugbyPanelState.activeView);
-}
-
-function renderRugbyChildView(sheetElement, nextView) {
-  const childContent = sheetElement.querySelector('[data-rugby-child-content]');
-  if (!childContent) {
-    return;
-  }
-
-  rugbyPanelState.activeView = nextView === 'simulator' ? 'simulator' : 'moves';
-  const viewButtons = sheetElement.querySelectorAll('[data-rugby-view-btn]');
-  viewButtons.forEach((button) => {
-    const isActive = button.dataset.rugbyViewBtn === rugbyPanelState.activeView;
-    button.classList.toggle('is-active', isActive);
-    button.setAttribute('aria-selected', String(isActive));
-  });
-
-  if (rugbyPanelState.activeView === 'moves') {
-    unmountRugbySimulator();
-    childContent.innerHTML = getRugbyMovesPanelMarkup();
-    return;
-  }
-
-  childContent.innerHTML = getRugbySimulatorPanelMarkup();
-  mountRugbySimulator(sheetElement);
 }
 
 function createRugbyItems() {
@@ -419,23 +330,18 @@ function mountRugbySimulator(sheetElement) {
   }
 
   const onPointerMove = (event) => {
-    if (!workspace.drag || !workspace.dom) {
+    if (!workspace.drag || !workspace.dom || workspace.drag.pointerId !== event.pointerId) {
       return;
     }
 
-    const { id, pointerId, offsetX, offsetY } = workspace.drag;
-    if (pointerId !== event.pointerId) {
-      return;
-    }
-
-    const item = workspace.byId.get(id);
+    const item = workspace.byId.get(workspace.drag.id);
     if (!item) {
       return;
     }
 
     const pitchRect = workspace.dom.pitch.getBoundingClientRect();
-    const nextX = Math.min(99, Math.max(1, ((event.clientX - pitchRect.left - offsetX) / pitchRect.width) * 100));
-    const nextY = Math.min(99, Math.max(1, ((event.clientY - pitchRect.top - offsetY) / pitchRect.height) * 100));
+    const nextX = Math.min(99, Math.max(1, ((event.clientX - pitchRect.left - workspace.drag.offsetX) / pitchRect.width) * 100));
+    const nextY = Math.min(99, Math.max(1, ((event.clientY - pitchRect.top - workspace.drag.offsetY) / pitchRect.height) * 100));
 
     item.x = nextX;
     item.y = nextY;
@@ -452,11 +358,7 @@ function mountRugbySimulator(sheetElement) {
   };
 
   const onPointerUp = (event) => {
-    if (!workspace.drag || !workspace.dom) {
-      return;
-    }
-
-    if (workspace.drag.pointerId !== event.pointerId) {
+    if (!workspace.drag || !workspace.dom || workspace.drag.pointerId !== event.pointerId) {
       return;
     }
 
@@ -541,9 +443,33 @@ function renderRugbyBoard() {
 
   const selectedItem = byId.get(selectedId);
   dom.selector.value = selectedId;
-  dom.selectedName.textContent = selectedItem ? `${selectedItem.id === 'ball' ? 'Ball' : `${selectedItem.id} • ${selectedItem.name}`}` : '—';
+  dom.selectedName.textContent = selectedItem ? (selectedItem.id === 'ball' ? 'Ball' : `${selectedItem.id} • ${selectedItem.name}`) : '—';
   dom.recordingState.textContent = selectedItem?.isRecording ? 'ON' : 'OFF';
   dom.recordingState.classList.toggle('is-on', Boolean(selectedItem?.isRecording));
+}
+
+function renderRugbyChildView(sheetElement, nextView) {
+  const childContent = sheetElement.querySelector('[data-rugby-child-content]');
+  if (!childContent) {
+    return;
+  }
+
+  rugbyPanelState.activeView = nextView === 'simulator' ? 'simulator' : 'moves';
+
+  sheetElement.querySelectorAll('[data-rugby-view]').forEach((button) => {
+    const isActive = button.dataset.rugbyView === rugbyPanelState.activeView;
+    button.classList.toggle('is-active', isActive);
+    button.setAttribute('aria-selected', String(isActive));
+  });
+
+  if (rugbyPanelState.activeView === 'moves') {
+    unmountRugbySimulator();
+    childContent.innerHTML = getRugbyMovesPanelMarkup();
+    return;
+  }
+
+  childContent.innerHTML = getRugbySimulatorPanelMarkup();
+  mountRugbySimulator(sheetElement);
 }
 
 function clearRugbyError(sheetElement) {
@@ -562,11 +488,9 @@ function showRugbyError(sheetElement, message) {
 
 function refreshRugbyMoves(sheetElement) {
   const libraryElement = sheetElement.querySelector('[data-rugby-library]');
-  if (!libraryElement) {
-    return;
+  if (libraryElement) {
+    libraryElement.innerHTML = getRugbyMovesMarkup();
   }
-
-  libraryElement.innerHTML = getRugbyMovesMarkup();
 }
 
 function loadTopicNotes(topicKey) {
@@ -580,7 +504,6 @@ function saveTopicNotes(topicKey, notes) {
 
 function loadTopicLinks(topicKey) {
   const rawLinks = localStorage.getItem(getEngineeringStorageKey(topicKey, 'links'));
-
   if (!rawLinks) {
     return [];
   }
@@ -591,14 +514,7 @@ function loadTopicLinks(topicKey) {
       return [];
     }
 
-    return parsedLinks.filter((item) => {
-      if (!item || typeof item !== 'object') {
-        return false;
-      }
-
-      const safeUrl = normalizeUrl(item.url);
-      return Boolean(safeUrl);
-    });
+    return parsedLinks.filter((item) => item && typeof item === 'object' && normalizeUrl(item.url));
   } catch {
     return [];
   }
@@ -694,7 +610,6 @@ function renderCategorySheet(sheetElement, categoryKey) {
   }
 
   const content = CATEGORY_CONTENT[categoryKey];
-
   if (!content) {
     destroyRugbyWorkspace();
     sheetElement.innerHTML = '<p class="sheet-placeholder">Choose a category above to view details.</p>';
@@ -718,11 +633,9 @@ function renderCategorySheet(sheetElement, categoryKey) {
 
 function refreshTopicLinks(sheetElement, topicKey) {
   const linksContainer = sheetElement.querySelector(`[data-topic-links="${topicKey}"]`);
-  if (!linksContainer) {
-    return;
+  if (linksContainer) {
+    linksContainer.innerHTML = getTopicLinksMarkup(topicKey);
   }
-
-  linksContainer.innerHTML = getTopicLinksMarkup(topicKey);
 }
 
 function clearTopicError(sheetElement, topicKey) {
@@ -759,7 +672,7 @@ function handleEngineeringInput(event, sheetElement) {
 }
 
 function handleRugbyInput(event, sheetElement) {
-  if (!rugbyWorkspace || !sheetElement.contains(rugbyWorkspace.pitch)) {
+  if (!rugbyWorkspace || !rugbyWorkspace.dom || !sheetElement.contains(rugbyWorkspace.dom.pitch)) {
     return;
   }
 
@@ -769,12 +682,10 @@ function handleRugbyInput(event, sheetElement) {
   }
 
   const selectedId = String(selector.value ?? '').trim();
-  if (!rugbyWorkspace.byId.has(selectedId)) {
-    return;
+  if (rugbyWorkspace.byId.has(selectedId)) {
+    rugbyWorkspace.selectedId = selectedId;
+    renderRugbyBoard();
   }
-
-  rugbyWorkspace.selectedId = selectedId;
-  renderRugbyBoard();
 }
 
 function handleEngineeringClick(event, sheetElement) {
@@ -791,7 +702,6 @@ function handleEngineeringClick(event, sheetElement) {
   if (actionButton.dataset.action === 'add-link') {
     const labelInput = sheetElement.querySelector(`[data-topic-link-label="${topicKey}"]`);
     const urlInput = sheetElement.querySelector(`[data-topic-link-url="${topicKey}"]`);
-
     if (!urlInput) {
       return;
     }
@@ -802,13 +712,8 @@ function handleEngineeringClick(event, sheetElement) {
       return;
     }
 
-    const nextLink = {
-      label: String(labelInput?.value ?? '').trim(),
-      url: safeUrl
-    };
-
     const topicLinks = loadTopicLinks(topicKey);
-    topicLinks.push(nextLink);
+    topicLinks.push({ label: String(labelInput?.value ?? '').trim(), url: safeUrl });
     saveTopicLinks(topicKey, topicLinks);
 
     if (labelInput) {
@@ -825,46 +730,108 @@ function handleEngineeringClick(event, sheetElement) {
       return;
     }
 
-    const topicLinks = loadTopicLinks(topicKey);
-    const filteredLinks = topicLinks.filter((_, index) => index !== linkIndex);
+    const filteredLinks = loadTopicLinks(topicKey).filter((_, index) => index !== linkIndex);
     saveTopicLinks(topicKey, filteredLinks);
     clearTopicError(sheetElement, topicKey);
     refreshTopicLinks(sheetElement, topicKey);
   }
 }
 
-function handleRugbyClick(event, sheetElement) {
-  if (!rugbyWorkspace || !sheetElement.contains(rugbyWorkspace.pitch)) {
+function handleRugbyPointerDown(event, sheetElement) {
+  if (!rugbyWorkspace || !rugbyWorkspace.dom || !sheetElement.contains(rugbyWorkspace.dom.pitch)) {
     return;
   }
 
   const markerButton = event.target.closest('[data-rugby-marker]');
-  if (markerButton) {
-    const markerId = String(markerButton.dataset.rugbyMarker ?? '').trim();
-    if (!rugbyWorkspace.byId.has(markerId)) {
-      return;
-    }
-
-    rugbyWorkspace.selectedId = markerId;
-    const markerRect = markerButton.getBoundingClientRect();
-    rugbyWorkspace.drag = {
-      id: markerId,
-      offsetX: markerRect.left + markerRect.width / 2 - event.clientX,
-      offsetY: markerRect.top + markerRect.height / 2 - event.clientY
-    };
-
-    const markerItem = rugbyWorkspace.byId.get(markerId);
-    if (markerItem?.isRecording && !markerItem.path.length) {
-      markerItem.path.push({ x: markerItem.x, y: markerItem.y });
-    }
-
-    rugbyWorkspace.pitch.classList.add('is-dragging');
-    renderRugbyBoard();
+  if (!markerButton) {
     return;
   }
 
+  const markerId = String(markerButton.dataset.rugbyMarker ?? '').trim();
+  const markerItem = rugbyWorkspace.byId.get(markerId);
+  if (!markerItem) {
+    return;
+  }
+
+  rugbyWorkspace.selectedId = markerId;
+  const markerRect = markerButton.getBoundingClientRect();
+  rugbyWorkspace.drag = {
+    id: markerId,
+    pointerId: event.pointerId,
+    offsetX: markerRect.left + markerRect.width / 2 - event.clientX,
+    offsetY: markerRect.top + markerRect.height / 2 - event.clientY
+  };
+
+  if (markerItem.isRecording && !markerItem.path.length) {
+    markerItem.path.push({ x: markerItem.x, y: markerItem.y });
+  }
+
+  rugbyWorkspace.dom.pitch.classList.add('is-dragging');
+  renderRugbyBoard();
+}
+
+function handleRugbyClick(event, sheetElement) {
   const actionButton = event.target.closest('[data-action]');
   if (!actionButton) {
+    return;
+  }
+
+  if (actionButton.dataset.action === 'rugby-switch-view') {
+    renderRugbyChildView(sheetElement, actionButton.dataset.rugbyView);
+    return;
+  }
+
+  if (actionButton.dataset.action === 'rugby-save-move') {
+    const titleInput = sheetElement.querySelector('[data-rugby-move-title]');
+    const videoInput = sheetElement.querySelector('[data-rugby-move-video]');
+    const notesInput = sheetElement.querySelector('[data-rugby-move-notes]');
+
+    const title = String(titleInput?.value ?? '').trim();
+    const normalizedUrl = normalizeUrl(videoInput?.value ?? '');
+
+    if (!title) {
+      showRugbyError(sheetElement, 'Move name is required.');
+      return;
+    }
+
+    const youtubeId = normalizedUrl ? extractYouTubeVideoId(normalizedUrl) : null;
+    const thumbnailUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : '';
+
+    const existingMoves = loadRugbyMoves();
+    existingMoves.unshift({
+      id: `move-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+      title,
+      description: String(notesInput?.value ?? '').trim(),
+      videoUrl: normalizedUrl ?? '',
+      thumbnailUrl,
+      createdAt: new Date().toISOString()
+    });
+
+    saveRugbyMoves(existingMoves);
+
+    if (titleInput) titleInput.value = '';
+    if (videoInput) videoInput.value = '';
+    if (notesInput) notesInput.value = '';
+
+    clearRugbyError(sheetElement);
+    refreshRugbyMoves(sheetElement);
+    return;
+  }
+
+  if (actionButton.dataset.action === 'rugby-delete-move') {
+    const moveId = String(actionButton.dataset.rugbyMoveId ?? '').trim();
+    if (!moveId) {
+      return;
+    }
+
+    const filteredMoves = loadRugbyMoves().filter((move) => move.id !== moveId);
+    saveRugbyMoves(filteredMoves);
+    clearRugbyError(sheetElement);
+    refreshRugbyMoves(sheetElement);
+    return;
+  }
+
+  if (!rugbyWorkspace || !rugbyWorkspace.dom || !sheetElement.contains(rugbyWorkspace.dom.pitch)) {
     return;
   }
 
@@ -891,6 +858,7 @@ function handleRugbyClick(event, sheetElement) {
   if (actionButton.dataset.action === 'rugby-clear-all') {
     rugbyWorkspace.items.forEach((item) => {
       item.path = [];
+      item.isRecording = false;
     });
   }
 
@@ -898,10 +866,12 @@ function handleRugbyClick(event, sheetElement) {
     rugbyWorkspace.items.forEach((item) => {
       item.x = item.startX;
       item.y = item.startY;
+      item.path = [];
       item.isRecording = false;
     });
+
     rugbyWorkspace.drag = null;
-    rugbyWorkspace.pitch.classList.remove('is-dragging');
+    rugbyWorkspace.dom.pitch.classList.remove('is-dragging');
   }
 
   renderRugbyBoard();
@@ -940,6 +910,10 @@ function initCategoryExplorer() {
   sheetElement.addEventListener('input', (event) => {
     handleEngineeringInput(event, sheetElement);
     handleRugbyInput(event, sheetElement);
+  });
+
+  sheetElement.addEventListener('pointerdown', (event) => {
+    handleRugbyPointerDown(event, sheetElement);
   });
 
   sheetElement.addEventListener('click', (event) => {
