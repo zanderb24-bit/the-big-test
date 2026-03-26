@@ -1199,3 +1199,100 @@ button:disabled {
     min-height: 400px;
   }
 }
+
+.rugby-child-content {
+  display: grid;
+  gap: 1rem;
+}
+
+.rugby-moves-panel {
+  display: grid;
+  grid-template-columns: minmax(250px, 320px) minmax(0, 1fr);
+  gap: 0.9rem;
+}
+
+.rugby-move-form-card,
+.rugby-library-card {
+  align-content: start;
+}
+
+.rugby-move-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.rugby-move-card {
+  display: grid;
+  grid-template-columns: 128px minmax(0, 1fr) auto;
+  gap: 0.6rem;
+  border: 1px solid rgba(86, 255, 150, 0.24);
+  border-radius: 0.65rem;
+  padding: 0.55rem;
+  background: rgba(3, 14, 9, 0.74);
+  align-items: center;
+}
+
+.rugby-move-thumb-wrap {
+  min-width: 0;
+}
+
+.rugby-move-thumb {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 0.45rem;
+  border: 1px solid rgba(86, 255, 150, 0.2);
+}
+
+.rugby-move-thumb-fallback {
+  display: grid;
+  place-items: center;
+  font-size: 0.72rem;
+  color: var(--muted);
+  background: linear-gradient(180deg, rgba(20, 45, 31, 0.65), rgba(7, 18, 12, 0.92));
+}
+
+.rugby-move-meta {
+  min-width: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.rugby-move-meta h5 {
+  margin: 0;
+  font-size: 0.86rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.rugby-move-meta p {
+  margin: 0;
+  color: #d5efde;
+  font-size: 0.82rem;
+}
+
+.rugby-move-meta-footer {
+  display: flex;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.rugby-move-meta-footer a {
+  color: #d6ffe5;
+}
+
+@media (max-width: 860px) {
+  .rugby-moves-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .rugby-move-card {
+    grid-template-columns: 1fr;
+  }
+}
