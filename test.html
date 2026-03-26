@@ -11,32 +11,41 @@
       <header class="header">
         <div class="panel header-panel">
           <h1>Dashboard Test Page</h1>
-          <p class="last-updated">Navigation check: this is a second static page.</p>
+          <p class="last-updated">Sandbox category explorer: same-page interaction test.</p>
         </div>
         <a class="nav-link-btn" href="index.html">Back to Dashboard</a>
       </header>
 
-      <section class="stats-grid" aria-label="Test cards">
-        <article class="stat-card" tabindex="0">
-          <h2>Page Navigation</h2>
-          <p class="value">Working</p>
-          <p class="last-updated">You can move between pages with simple links.</p>
-        </article>
+      <section class="category-explorer" aria-label="Category explorer">
+        <div class="panel category-panel">
+          <h2>Explore Categories</h2>
+          <p class="last-updated">Select a category to open its detail sheet below.</p>
 
-        <article class="stat-card" tabindex="0">
-          <h2>Multi-Page Setup</h2>
-          <p class="value">Enabled</p>
-          <p class="last-updated">This page reuses the same stylesheet as the dashboard.</p>
-        </article>
-      </section>
+          <div class="category-grid" role="list" aria-label="Topic categories">
+            <button class="category-card" type="button" role="listitem" data-category="engineering" aria-pressed="false">
+              Engineering
+            </button>
+            <button class="category-card" type="button" role="listitem" data-category="rugby" aria-pressed="false">
+              Rugby
+            </button>
+            <button class="category-card" type="button" role="listitem" data-category="counter-strike-2" aria-pressed="false">
+              Counter-Strike 2
+            </button>
+            <button class="category-card" type="button" role="listitem" data-category="gardening" aria-pressed="false">
+              Gardening
+            </button>
+            <button class="category-card" type="button" role="listitem" data-category="work" aria-pressed="false">
+              Work
+            </button>
+          </div>
+        </div>
 
-      <section class="asset-section" aria-label="Test page note">
-        <h2>Confirmation</h2>
-        <p>
-          This lightweight second page is intentionally static and shares the dashboard style to validate
-          multi-page navigation without introducing any framework or router.
-        </p>
+        <article class="panel category-sheet" id="category-sheet" aria-live="polite">
+          <p class="sheet-placeholder">Choose a category above to view details.</p>
+        </article>
       </section>
     </main>
+
+    <script src="test-page.js" defer></script>
   </body>
 </html>
