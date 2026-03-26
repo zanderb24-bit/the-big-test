@@ -38,7 +38,6 @@ const ENGINEERING_TOPICS = {
   'mechanical-systems': 'Mechanical Systems'
 };
 
-const RUGBY_MOVES_STORAGE_KEY = 'rugby-preset-moves';
 const RUGBY_POSITIONS = [
   { id: '1', label: '1', name: 'Loosehead Prop', startX: 28, startY: 20 },
   { id: '2', label: '2', name: 'Hooker', startX: 35, startY: 24 },
@@ -56,9 +55,8 @@ const RUGBY_POSITIONS = [
   { id: '14', label: '14', name: 'Right Wing', startX: 82, startY: 60 },
   { id: '15', label: '15', name: 'Fullback', startX: 68, startY: 74 }
 ];
-const RUGBY_BALL = { id: 'ball', label: 'Ball', name: 'Ball', startX: 50, startY: 48 };
 
-let rugbyPanelState = { activeView: 'moves' };
+const RUGBY_BALL = { id: 'ball', label: 'Ball', name: 'Ball', startX: 50, startY: 48 };
 let rugbyWorkspace = null;
 
 function getEngineeringStorageKey(topicKey, field) {
@@ -136,166 +134,16 @@ function extractYouTubeVideoId(urlInput) {
   }
 }
 
-function getRugbyMoveMetadata(urlInput) {
-  const safeUrl = normalizeUrl(urlInput);
-  if (!safeUrl) {
-    return null;
-  }
-
-  const source = getSourceLabel(safeUrl);
-  const youtubeId = extractYouTubeVideoId(safeUrl);
-  const thumbnailUrl = youtubeId ? `https://img.youtube.com/vi/${encodeURIComponent(youtubeId)}/hqdefault.jpg` : '';
-
-  return {
-    url: safeUrl,
-    source,
-    thumbnailUrl
-  };
-}
-
-function getMoveId() {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-
-  return `move-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function loadRugbyMoves() {
-  const rawMoves = localStorage.getItem(RUGBY_MOVES_STORAGE_KEY);
-
-  if (!rawMoves) {
-    return [];
-  }
-
-  try {
-    const parsedMoves = JSON.parse(rawMoves);
-    if (!Array.isArray(parsedMoves)) {
-      return [];
-    }
-
-    return parsedMoves
-      .map((move) => {
-        if (!move || typeof move !== 'object') {
-          return null;
-        }
-
-        const metadata = getRugbyMoveMetadata(move.url);
-        if (!metadata) {
-          return null;
-        }
-
-        const title = String(move.title ?? '').trim();
-        if (!title) {
-          return null;
-        }
-
-        return {
-          id: String(move.id ?? getMoveId()),
-          title,
-          subtitle: String(move.subtitle ?? '').trim(),
-          url: metadata.url,
-          source: String(move.source ?? metadata.source).trim() || metadata.source,
-          thumbnailUrl: String(move.thumbnailUrl ?? metadata.thumbnailUrl).trim() || metadata.thumbnailUrl
-        };
-      })
-      .filter(Boolean);
-  } catch {
-    return [];
-  }
-}
-
-function saveRugbyMoves(moves) {
-  const safeMoves = Array.isArray(moves) ? moves : [];
-  localStorage.setItem(RUGBY_MOVES_STORAGE_KEY, JSON.stringify(safeMoves));
-}
-
-function getRugbyMovesMarkup() {
-  const moves = loadRugbyMoves();
-
-  if (!moves.length) {
-    return `
-      <div class="rugby-empty-state">
-        <p>No preset moves saved yet.</p>
-        <p>Add your first move above with a YouTube or reference URL.</p>
-      </div>
-    `;
-  }
-
-  const cards = moves
-    .map((move) => {
-      const safeThumb = sanitizeText(move.thumbnailUrl);
-      const safeTitle = sanitizeText(move.title);
-      const safeSubtitle = sanitizeText(move.subtitle);
-      const safeUrl = sanitizeText(move.url);
-      const safeSource = sanitizeText(move.source || 'Reference');
-      const safeId = sanitizeText(move.id);
-
-      const thumbnailMarkup = move.thumbnailUrl
-        ? `<img src="${safeThumb}" alt="${safeTitle} video thumbnail" loading="lazy" referrerpolicy="no-referrer" />`
-        : `
-          <div class="rugby-thumb-fallback" aria-hidden="true">
-            <span class="rugby-thumb-chip">Reference</span>
-            <span class="rugby-thumb-source">${safeSource}</span>
-          </div>
-        `;
-
-      return `
-        <article class="rugby-move-card">
-          <button class="rugby-remove-btn" type="button" data-action="remove-rugby-move" data-move-id="${safeId}" aria-label="Remove ${safeTitle}">Remove</button>
-          <a class="rugby-move-open" href="${safeUrl}" target="_blank" rel="noopener noreferrer">
-            <div class="rugby-thumb-area">
-              ${thumbnailMarkup}
-            </div>
-            <div class="rugby-card-body">
-              <h4>${safeTitle}</h4>
-              ${safeSubtitle ? `<p class="rugby-move-subtitle">${safeSubtitle}</p>` : '<p class="rugby-move-subtitle">&nbsp;</p>'}
-              <p class="rugby-source">${safeSource}</p>
-            </div>
-          </a>
-        </article>
-      `;
-    })
-    .join('');
-
-  return `<div class="rugby-moves-grid">${cards}</div>`;
-}
-
-function getRugbyMovesPanelMarkup() {
-  return `
-    <div class="rugby-preset-panel">
-      <form class="rugby-form" data-rugby-form>
-        <div class="rugby-form-grid">
-          <label class="engineering-label" for="rugby-move-title">Move title</label>
-          <input id="rugby-move-title" type="text" maxlength="120" data-rugby-title placeholder="e.g. Crash Ball to Blindside" required />
-
-          <label class="engineering-label" for="rugby-move-subtitle">Tag / short note (optional)</label>
-          <input id="rugby-move-subtitle" type="text" maxlength="120" data-rugby-subtitle placeholder="e.g. Phase play • Forward pod" />
-
-          <label class="engineering-label" for="rugby-move-url">Video/reference URL</label>
-          <input id="rugby-move-url" type="url" data-rugby-url placeholder="https://youtube.com/watch?v=..." required />
-        </div>
-
-        <div class="rugby-form-actions">
-          <button type="submit">Save Move</button>
-          <p class="engineering-helper rugby-form-helper">Supports YouTube and any valid http(s) reference link.</p>
-        </div>
-        <p class="engineering-helper engineering-error" data-rugby-error aria-live="polite"></p>
-      </form>
-
-      <section class="rugby-library" data-rugby-library aria-live="polite">
-        ${getRugbyMovesMarkup()}
-      </section>
-    </div>
-  `;
-}
-
-function getRugbySimulatorPanelMarkup() {
+function renderRugbySheet(sheetElement) {
   const selectOptions = [...RUGBY_POSITIONS, RUGBY_BALL]
     .map((item) => `<option value="${item.id}">${item.id === 'ball' ? 'Ball' : `${item.id} • ${item.name}`}</option>`)
     .join('');
 
-  return `
+  sheetElement.innerHTML = `
+    <p class="sheet-tag">Rugby Workspace • Move Builder</p>
+    <h3>Rugby</h3>
+    <p class="sheet-description">Build multi-phase rugby moves by selecting players or the ball and recording each trail independently.</p>
+
     <section class="rugby-workspace">
       <aside class="rugby-controls">
         <div class="rugby-control-block">
@@ -336,6 +184,155 @@ function getRugbySimulatorPanelMarkup() {
       </section>
     </section>
   `;
+
+  initRugbyWorkspace(sheetElement);
+}
+
+function createRugbyItems() {
+  return [...RUGBY_POSITIONS, RUGBY_BALL].map((item) => ({
+    ...item,
+    x: item.startX,
+    y: item.startY,
+    path: [],
+    isRecording: false
+  }));
+}
+
+function destroyRugbyWorkspace() {
+  if (!rugbyWorkspace) {
+    return;
+  }
+
+  if (typeof rugbyWorkspace.cleanup === 'function') {
+    rugbyWorkspace.cleanup();
+  }
+
+  rugbyWorkspace = null;
+}
+
+function initRugbyWorkspace(sheetElement) {
+  destroyRugbyWorkspace();
+
+  const pitch = sheetElement.querySelector('[data-rugby-pitch]');
+  const markersLayer = sheetElement.querySelector('[data-rugby-markers]');
+  const trailsLayer = sheetElement.querySelector('[data-rugby-trails]');
+  const selector = sheetElement.querySelector('[data-rugby-selector]');
+  const selectedName = sheetElement.querySelector('[data-rugby-selected-name]');
+  const recordingState = sheetElement.querySelector('[data-rugby-recording-state]');
+
+  if (!pitch || !markersLayer || !trailsLayer || !selector || !selectedName || !recordingState) {
+    return;
+  }
+
+  const items = createRugbyItems();
+  const byId = new Map(items.map((item) => [item.id, item]));
+
+  rugbyWorkspace = {
+    selectedId: '9',
+    drag: null,
+    items,
+    byId,
+    pitch,
+    markersLayer,
+    trailsLayer,
+    selector,
+    selectedName,
+    recordingState
+  };
+
+  const onPointerMove = (event) => {
+    if (!rugbyWorkspace?.drag) {
+      return;
+    }
+
+    const { id, offsetX, offsetY } = rugbyWorkspace.drag;
+    const item = rugbyWorkspace.byId.get(id);
+    if (!item) {
+      return;
+    }
+
+    const pitchRect = rugbyWorkspace.pitch.getBoundingClientRect();
+    const nextX = Math.min(99, Math.max(1, ((event.clientX - pitchRect.left - offsetX) / pitchRect.width) * 100));
+    const nextY = Math.min(99, Math.max(1, ((event.clientY - pitchRect.top - offsetY) / pitchRect.height) * 100));
+
+    item.x = nextX;
+    item.y = nextY;
+
+    if (item.isRecording) {
+      const lastPoint = item.path[item.path.length - 1];
+      const hasMoved = !lastPoint || Math.hypot(lastPoint.x - nextX, lastPoint.y - nextY) > 0.45;
+      if (hasMoved) {
+        item.path.push({ x: nextX, y: nextY });
+      }
+    }
+
+    renderRugbyBoard();
+  };
+
+  const onPointerUp = () => {
+    if (rugbyWorkspace?.drag) {
+      rugbyWorkspace.drag = null;
+      rugbyWorkspace.pitch.classList.remove('is-dragging');
+    }
+  };
+
+  window.addEventListener('pointermove', onPointerMove);
+  window.addEventListener('pointerup', onPointerUp);
+
+  rugbyWorkspace.cleanup = () => {
+    window.removeEventListener('pointermove', onPointerMove);
+    window.removeEventListener('pointerup', onPointerUp);
+  };
+
+  renderRugbyBoard();
+}
+
+function renderRugbyBoard() {
+  if (!rugbyWorkspace) {
+    return;
+  }
+
+  const { items, selectedId, markersLayer, trailsLayer, selector, selectedName, recordingState } = rugbyWorkspace;
+
+  markersLayer.innerHTML = items
+    .map((item) => {
+      const isSelected = item.id === selectedId;
+      const markerClass = ['rugby-marker', item.id === 'ball' ? 'is-ball' : 'is-player', isSelected ? 'is-selected' : '']
+        .filter(Boolean)
+        .join(' ');
+      const markerLabel = item.id === 'ball' ? 'B' : item.label;
+      const titleText = `${item.id === 'ball' ? 'Ball' : `${item.id} • ${item.name}`}${item.isRecording ? ' (Recording)' : ''}`;
+
+      return `
+        <button
+          type="button"
+          class="${markerClass}"
+          style="left:${item.x}%; top:${item.y}%;"
+          data-rugby-marker="${item.id}"
+          title="${sanitizeText(titleText)}"
+          aria-label="${sanitizeText(titleText)}">
+          ${sanitizeText(markerLabel)}
+        </button>
+      `;
+    })
+    .join('');
+
+  trailsLayer.innerHTML = items
+    .map((item) => {
+      if (!item.path.length) {
+        return '';
+      }
+
+      const points = item.path.map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ');
+      return `<polyline class="rugby-trail ${item.id === selectedId ? 'is-selected' : ''}" data-trail-id="${item.id}" points="${points}" />`;
+    })
+    .join('');
+
+  const selectedItem = rugbyWorkspace.byId.get(selectedId);
+  selector.value = selectedId;
+  selectedName.textContent = selectedItem ? `${selectedItem.id === 'ball' ? 'Ball' : `${selectedItem.id} • ${selectedItem.name}`}` : '—';
+  recordingState.textContent = selectedItem?.isRecording ? 'ON' : 'OFF';
+  recordingState.classList.toggle('is-on', Boolean(selectedItem?.isRecording));
 }
 
 function renderRugbySheet(sheetElement) {
@@ -705,7 +702,7 @@ function renderCategorySheet(sheetElement, categoryKey) {
   }
 
   if (categoryKey === 'engineering') {
-    unmountRugbySimulator();
+    destroyRugbyWorkspace();
     renderEngineeringSheet(sheetElement);
     return;
   }
@@ -715,7 +712,7 @@ function renderCategorySheet(sheetElement, categoryKey) {
     return;
   }
 
-  unmountRugbySimulator();
+  destroyRugbyWorkspace();
   renderBasicCategorySheet(sheetElement, content);
 }
 
@@ -762,8 +759,12 @@ function handleEngineeringInput(event, sheetElement) {
 }
 
 function handleRugbyInput(event, sheetElement) {
+  if (!rugbyWorkspace || !sheetElement.contains(rugbyWorkspace.pitch)) {
+    return;
+  }
+
   const selector = event.target.closest('[data-rugby-selector]');
-  if (!selector || !rugbyWorkspace?.dom || rugbyPanelState.activeView !== 'simulator') {
+  if (!selector) {
     return;
   }
 
@@ -832,108 +833,33 @@ function handleEngineeringClick(event, sheetElement) {
   }
 }
 
-function handleRugbyPointerDown(event, sheetElement) {
-  if (rugbyPanelState.activeView !== 'simulator' || !rugbyWorkspace?.dom || !sheetElement.contains(rugbyWorkspace.dom.pitch)) {
+function handleRugbyClick(event, sheetElement) {
+  if (!rugbyWorkspace || !sheetElement.contains(rugbyWorkspace.pitch)) {
     return;
   }
 
   const markerButton = event.target.closest('[data-rugby-marker]');
-  if (!markerButton) {
-    return;
-  }
-
-  const markerId = String(markerButton.dataset.rugbyMarker ?? '').trim();
-  if (!rugbyWorkspace.byId.has(markerId)) {
-    return;
-  }
-
-  event.preventDefault();
-  rugbyWorkspace.selectedId = markerId;
-
-  const markerRect = markerButton.getBoundingClientRect();
-  rugbyWorkspace.drag = {
-    id: markerId,
-    pointerId: event.pointerId,
-    offsetX: markerRect.left + markerRect.width / 2 - event.clientX,
-    offsetY: markerRect.top + markerRect.height / 2 - event.clientY
-  };
-
-  const markerItem = rugbyWorkspace.byId.get(markerId);
-  if (markerItem?.isRecording && !markerItem.path.length) {
-    markerItem.path.push({ x: markerItem.x, y: markerItem.y });
-  }
-
-  rugbyWorkspace.dom.pitch.classList.add('is-dragging');
-  renderRugbyBoard();
-}
-
-function handleRugbySubmit(event, sheetElement) {
-  const rugbyForm = event.target.closest('[data-rugby-form]');
-  if (!rugbyForm) {
-    return;
-  }
-
-  event.preventDefault();
-
-  const titleInput = rugbyForm.querySelector('[data-rugby-title]');
-  const subtitleInput = rugbyForm.querySelector('[data-rugby-subtitle]');
-  const urlInput = rugbyForm.querySelector('[data-rugby-url]');
-
-  const title = String(titleInput?.value ?? '').trim();
-  const subtitle = String(subtitleInput?.value ?? '').trim();
-  const urlValue = String(urlInput?.value ?? '').trim();
-
-  if (!title) {
-    showRugbyError(sheetElement, 'Please add a move title.');
-    return;
-  }
-
-  const metadata = getRugbyMoveMetadata(urlValue);
-  if (!metadata) {
-    showRugbyError(sheetElement, 'Please enter a valid http(s) URL.');
-    return;
-  }
-
-  const moves = loadRugbyMoves();
-  moves.unshift({
-    id: getMoveId(),
-    title,
-    subtitle,
-    url: metadata.url,
-    source: metadata.source,
-    thumbnailUrl: metadata.thumbnailUrl
-  });
-
-  saveRugbyMoves(moves);
-  clearRugbyError(sheetElement);
-  rugbyForm.reset();
-  refreshRugbyMoves(sheetElement);
-}
-
-function handleRugbyClick(event, sheetElement) {
-  const viewButton = event.target.closest('[data-rugby-view-btn]');
-  if (viewButton && sheetElement.contains(viewButton)) {
-    renderRugbyChildView(sheetElement, viewButton.dataset.rugbyViewBtn);
-    return;
-  }
-
-  const removeButton = event.target.closest('[data-action="remove-rugby-move"]');
-  if (removeButton) {
-    event.preventDefault();
-    const moveId = String(removeButton.dataset.moveId ?? '').trim();
-    if (!moveId) {
+  if (markerButton) {
+    const markerId = String(markerButton.dataset.rugbyMarker ?? '').trim();
+    if (!rugbyWorkspace.byId.has(markerId)) {
       return;
     }
 
-    const moves = loadRugbyMoves();
-    const filteredMoves = moves.filter((move) => move.id !== moveId);
-    saveRugbyMoves(filteredMoves);
-    clearRugbyError(sheetElement);
-    refreshRugbyMoves(sheetElement);
-    return;
-  }
+    rugbyWorkspace.selectedId = markerId;
+    const markerRect = markerButton.getBoundingClientRect();
+    rugbyWorkspace.drag = {
+      id: markerId,
+      offsetX: markerRect.left + markerRect.width / 2 - event.clientX,
+      offsetY: markerRect.top + markerRect.height / 2 - event.clientY
+    };
 
-  if (rugbyPanelState.activeView !== 'simulator' || !rugbyWorkspace?.dom || !sheetElement.contains(rugbyWorkspace.dom.pitch)) {
+    const markerItem = rugbyWorkspace.byId.get(markerId);
+    if (markerItem?.isRecording && !markerItem.path.length) {
+      markerItem.path.push({ x: markerItem.x, y: markerItem.y });
+    }
+
+    rugbyWorkspace.pitch.classList.add('is-dragging');
+    renderRugbyBoard();
     return;
   }
 
@@ -975,7 +901,7 @@ function handleRugbyClick(event, sheetElement) {
       item.isRecording = false;
     });
     rugbyWorkspace.drag = null;
-    rugbyWorkspace.dom.pitch.classList.remove('is-dragging');
+    rugbyWorkspace.pitch.classList.remove('is-dragging');
   }
 
   renderRugbyBoard();
@@ -1016,17 +942,9 @@ function initCategoryExplorer() {
     handleRugbyInput(event, sheetElement);
   });
 
-  sheetElement.addEventListener('pointerdown', (event) => {
-    handleRugbyPointerDown(event, sheetElement);
-  });
-
   sheetElement.addEventListener('click', (event) => {
     handleEngineeringClick(event, sheetElement);
     handleRugbyClick(event, sheetElement);
-  });
-
-  sheetElement.addEventListener('submit', (event) => {
-    handleRugbySubmit(event, sheetElement);
   });
 
   setActiveCategory(categoryButtons, sheetElement, categoryButtons[0].dataset.category);
