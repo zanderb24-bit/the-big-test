@@ -213,11 +213,6 @@ h1 {
   text-shadow: 0 0 12px rgba(86, 255, 150, 0.24);
 }
 
-.subtitle {
-  margin-top: 0.4rem;
-  color: var(--muted);
-}
-
 .last-updated {
   margin-top: 0.6rem;
   color: var(--muted);
